@@ -1,0 +1,78 @@
+Comparisons between datasets 
+*The following comparisons are being made:
+Meta-analysis w/ crop and gizzard
+
+I. Making OTU biom table:
+
+1. biom convert -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable.txt -o convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable.biom --table-type "otu table"   
+
+2. biom summarize-table -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable.biom -o otu_summary_convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable.txt
+
+
+
+II. Compute Core Microbiome: 
+
+1. compute_core_microbiome.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable.biom -o otu_table_core_burst_convergent_evolution_stomach_meta-analysis
+
+
+
+III. Alpha Diversity:
+
+1. This following command is needed, as the alpha_params.txt file needs to be created manually: echo "alpha_diversity:metrics shannon,PD_whole_tree,chao1,observed_species" > alpha_params.txt
+
+alpha_rarefaction.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable.biom -m convergent_evolution_stomach_meta-analysis_merged_mapping_v2.txt -o wf_arare_burst_convergent_evolution_stomach_meta-analysis/ -p alpha_params.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre
+
+
+
+VI. Beta Diversity:
+
+beta_diversity_through_plots.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable.biom -m convergent_evolution_stomach_meta-analysis_merged_mapping_v2.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre -e 1 -o wf_bdiv_burst_convergent_evolution_stomach_meta-analysis/
+
+
+
+
+
+
+
+V. Making taxa biom table:
+1. biom convert -i douc_stomach_vs_feces_taxatable.txt -o douc_stomach_vs_feces_taxatable.biom --table-type "taxon table"   
+
+2. biom summarize-table -i douc_stomach_vs_feces_taxatable.biom -o otu_summary_douc_stomach_vs_feces_taxatable.txt
+
+
+
+VI. Taxa Summary:
+
+1. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417.txt -i douc_stomach_vs_feces_taxatable.biom -o taxa_summary_jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_#SampleID
+
+2. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417.txt -i douc_stomach_vs_feces_taxatable.biom -o taxa_summary_jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_AnimalID_name -c AnimalID_name
+
+3. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417.txt -i douc_stomach_vs_feces_taxatable.biom -o taxa_summary_jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_Alive_or_Deceased_as_of_091814 -c Alive_or_Deceased_as_of_091814
+
+4. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417.txt -i douc_stomach_vs_feces_taxatable.biom -o taxa_summary_jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_Bodysite -c Bodysite
+
+
+
+VII. Compute Taxonomy Ratios
+*Note: Using the following command to compute the Firmicutes to Bacteroidetes ratio for each primate species.
+
+All samples by #SampleID (this category includes all samples in this study):
+compute_taxonomy_ratios.py -i douc_stomach_vs_feces_taxatable.biom --increased p__Firmicutes --decreased p__Bacteroidetes -o jbcempv4_burst_douc_stomach_vs_feces_comparison_firmicutes_to_bacteroidetes_ratio.txt
+
+
+
+VIII. Statistical Testing (compare_categories.py):
+
+ANOSIM:
+By Bodysite:
+99 permutations:
+compare_categories.py --method anosim -i jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_unweighted_unifrac_dm.txt -m EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417.txt -c Bodysite -o anosim_99_out_jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_unweighted_unifrac_dm_Bodysite -n 99
+
+999 permutations:
+compare_categories.py --method anosim -i jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_unweighted_unifrac_dm.txt -m EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417.txt -c Bodysite -o anosim_999_out_jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_unweighted_unifrac_dm_Bodysite -n 999
+
+
+PERMANOVA:
+By Bodysite:
+999 permutations:
+compare_categories.py --method permanova -i jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_unweighted_unifrac_dm.txt -m EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417.txt -c Bodysite -o permanova_999_out_jbcempv4_burst_douc_stomach_vs_feces_comparison_otu_table_unweighted_unifrac_dm_Bodysite -n 999

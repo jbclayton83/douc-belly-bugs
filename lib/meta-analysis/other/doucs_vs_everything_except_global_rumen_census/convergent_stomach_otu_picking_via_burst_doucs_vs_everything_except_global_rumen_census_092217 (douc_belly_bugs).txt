@@ -1,0 +1,18 @@
+OTU Picking via Gabe:New 16S picking workflow with markerGMG, embalmer version "emb12", and embalmulate:
+
+
+Step 0: Get on msi with the isub below
+isub -n nodes=1:ppn=16 -m 64GB -w 12:00:00
+module load python
+
+Step 1: Merge multiple mapfiles
+merge_mapping_files.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_082417.txt,embl_prjeb10560_mapfile_v2.txt,embl_prjeb13326_mapfile_v2.txt,embl_prjeb13653_mapfile_v2.txt,embl_prjeb6946_mapfile_v2.txt,embl_prjeb7843_mapfile_v2.txt,sra_prjeb4136_mapfile_v2.txt,sra_prjna194038_mapfile_v2.txt,sra_prjeb18037_mapfile_v2.txt,sra_prjna261346_mapfile_v2_stomach.txt,sra_prjna79027_mapfile_v2.txt -o convergent_evolution_stomach_meta-analysis_merged_mapping_v2_doucs_vs_everything_except_global_rumen_census.txt -n 'Data not collected'
+
+Step 2: Align to 16S markerGMG version "PROK_170704", making a blast alignment file
+burst12_old -r /home/knightsd/algh0022/sop/PROK_170704.edx -a /home/knightsd/algh0022/sop/PROK_170704.acx -b /home/knightsd/algh0022/sop/PROK_170704.tax -q convergent_evolution_stomach_meta-analysis_combined_doucs_vs_everything_except_global_rumen_census.fasta -o convergent_evolution_stomach_meta-analysis_aligns_doucs_vs_everything_except_global_rumen_census.b6 -fr -n -m CAPITALIST -bs -i 0.935 -f -sa
+
+Step 3: Convert the blast alignment file to an otu and taxa table in QIIME legacy format 
+embalmulate convergent_evolution_stomach_meta-analysis_aligns_doucs_vs_everything_except_global_rumen_census.b6 convergent_evolution_stomach_meta-analysis_otutable_doucs_vs_everything_except_global_rumen_census.txt convergent_evolution_stomach_meta-analysis_taxatable_doucs_vs_everything_except_global_rumen_census.txt GGtrim
+
+Step 4: Make OTU table compatible with QIIME tree (it substitutes "s" the underscore "/_" with a space "/ " globally "g" in the original table and outputs (">") the converted table)
+sed 's/_/ /g' convergent_evolution_stomach_meta-analysis_otutable_doucs_vs_everything_except_global_rumen_census.txt > convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_doucs_vs_everything_except_global_rumen_census.txt

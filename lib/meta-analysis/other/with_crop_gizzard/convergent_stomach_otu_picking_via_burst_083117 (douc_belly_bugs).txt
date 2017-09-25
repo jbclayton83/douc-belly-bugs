@@ -1,0 +1,31 @@
+OTU Picking via Gabe:New 16S picking workflow with markerGMG, embalmer version "emb12", and embalmulate:
+
+Singapore Zoo Douc Stomach Contents and Feces Combined:
+Step 0: Get on msi with the isub below
+isub -n nodes=1:ppn=16 -m 32GB -w 12:00:00
+module load python
+
+Step 1: Merge multiple mapfiles
+merge_mapping_files.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_082417.txt,embl_prjeb10560_mapfile_v2.txt,embl_prjeb13326_mapfile_v2.txt,embl_prjeb13653_mapfile_v2.txt,embl_prjeb6946_mapfile_v2.txt,embl_prjeb7843_mapfile_v2.txt,qitta_1773_mapfile_crop_v2.txt,qitta_1773_mapfile_gizzard_v2.txt,sra_prjeb4136_mapfile.txt -o convergent_evolution_stomach_meta-analysis_merged_mapping_v2.txt -n 'Data not collected'
+
+Step 2: Align to 16S markerGMG version "PROK_170704", making a blast alignment file
+burst12_old -r /home/knightsd/algh0022/sop/PROK_170704.edx -a /home/knightsd/algh0022/sop/PROK_170704.acx -b /home/knightsd/algh0022/sop/PROK_170704.tax -q convergent_evolution_stomach_meta-analysis_combined_seqs.fasta -o convergent_evolution_stomach_meta-analysis_aligns.b6 -fr -n -m CAPITALIST -bs -i 0.935 -f -sa
+
+Step 3: Convert the blast alignment file to an otu and taxa table in QIIME legacy format 
+embalmulate convergent_evolution_stomach_meta-analysis_aligns.b6 convergent_evolution_stomach_meta-analysis_otutable.txt convergent_evolution_stomach_meta-analysis_taxatable.txt GGtrim
+
+Step 4: Make OTU table compatible with QIIME tree (it substitutes "s" the underscore "/_" with a space "/ " globally "g" in the original table and outputs (">") the converted table)
+sed 's/_/ /g' convergent_evolution_stomach_meta-analysis_otutable.txt > convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable.txt
+
+Step 5: 
+burst12_old -r /home/knightsd/algh0022/sop/CHLORO.edx -a /home/knightsd/algh0022/sop/CHLORO.acx -b /home/knightsd/algh0022/sop/CHLORO.tax -q convergent_evolution_stomach_meta-analysis_combined_seqs.fasta -o convergent_evolution_stomach_meta-analysis_chloro_aligns.b6 -n -m CAPITALIST -bs -i 0.95 -f -sa
+
+Step 6: 
+Convert the blast alignment file to an otu and taxa table in QIIME legacy format 
+embalmulate convergent_evolution_stomach_meta-analysis_chloro_aligns.b6 convergent_evolution_stomach_meta-analysis_chloro_otutable.txt convergent_evolution_stomach_meta-analysis_chloro_taxatable.txt GGtrim
+
+Step 7: Make OTU table compatible with QIIME tree (it substitutes "s" the underscore "/_" with a space "/ " globally "g" in the original table and outputs (">") the converted table)
+sed 's/_/ /g' douc_stomach_vs_feces_chloro_otutable.txt > convergent_evolution_stomach_meta-analysis_chloro_QIIMEcompatibleOTUtable.txt
+
+Note:
+There's a tree of the same name available for use with UniFrac etc (you may have to use `sed` to strip the reference names after the space and `sed` again to replace the underscore with a space to get QIIME to be happy matching the tree tips to the reference names in your table)

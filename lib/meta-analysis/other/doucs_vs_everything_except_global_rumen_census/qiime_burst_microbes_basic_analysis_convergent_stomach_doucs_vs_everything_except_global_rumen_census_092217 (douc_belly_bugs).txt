@@ -1,0 +1,30 @@
+Comparisons between datasets 
+*The following comparisons are being made:
+Meta-analysis w/ crop and gizzard
+
+I. Making OTU biom table:
+
+1. biom convert -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_doucs_vs_everything_except_global_rumen_census.txt -o convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_doucs_vs_everything_except_global_rumen_census.biom --table-type "otu table"   
+
+2. biom summarize-table -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_doucs_vs_everything_except_global_rumen_census.biom -o otu_summary_convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_doucs_vs_everything_except_global_rumen_census.txt
+
+
+
+II. Compute Core Microbiome: 
+
+1. compute_core_microbiome.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_doucs_vs_everything_except_global_rumen_census.biom -o otu_table_core_burst_convergent_evolution_stomach_meta-analysis_doucs_vs_everything_except_global_rumen_census
+
+
+
+III. Alpha Diversity:
+
+1. This following command is needed, as the alpha_params.txt file needs to be created manually: echo "alpha_diversity:metrics shannon,PD_whole_tree,chao1,observed_species" > alpha_params.txt
+
+alpha_rarefaction.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_doucs_vs_everything_except_global_rumen_census.biom -m convergent_evolution_stomach_meta-analysis_merged_mapping_v2_doucs_vs_everything_except_global_rumen_census.txt -o wf_arare_burst_convergent_evolution_stomach_meta-analysis_doucs_vs_everything_except_global_rumen_census/ -p alpha_params.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre
+
+
+
+VI. Beta Diversity:
+
+beta_diversity_through_plots.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_doucs_vs_everything_except_global_rumen_census.biom -m convergent_evolution_stomach_meta-analysis_merged_mapping_v2_doucs_vs_everything_except_global_rumen_census.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre -e 130 -o wf_bdiv_burst_convergent_evolution_stomach_meta-analysis_doucs_vs_everything_except_global_rumen_census/
+

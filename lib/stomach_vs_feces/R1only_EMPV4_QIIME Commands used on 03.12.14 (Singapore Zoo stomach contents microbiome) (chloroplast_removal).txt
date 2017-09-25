@@ -1,0 +1,147 @@
+R1 only: EMPV4 QIIME Commands used on 03.12.14 (Singapore Zoo stomach contents microbiome)
+
+EMPV4 (R1 only):
+
+I. Filter OTUs from OTU table:
+*Filtering out Chloroplast sequences using a file Dan gave me based on the observation that there are many chloroplast sequences, which might be due to ground contamination, especially in the howler samples)
+
+filter_otus_from_otu_table.py -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_otus.biom -o seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_otus_NO_CHLOROPLASTS.biom -e chloroplast_greengenes_13_8_IDs.txt
+
+
+
+II. Making OTU biom table:
+
+1. biom add-metadata -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_otus_NO_CHLOROPLASTS.biom -o seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom --observation-metadata-fp /panfs/roc/groups/8/knightsd/public/gg_13_8_otus/taxonomy/97_otu_taxonomy.txt --observation-header "OTU_ID,taxonomy" --sc-separated taxonomy
+
+2. biom summarize-table -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -o otu_summary_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.txt
+
+3. Make OTU table from biom format to .txt:
+biom convert -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -o otu_biom_table_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.txt --to-tsv
+
+
+
+III. Compute Core Microbiome: 
+
+compute_core_microbiome.py -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -o otu_table_core_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS
+
+
+
+IV. Alpha Diversity (submitted via PBS jobfile):
+
+1. This following command is needed, as the alpha_params.txt file needs to be created manually: echo "alpha_diversity:metrics shannon,PD_whole_tree,chao1,observed_species" > alpha_params.txt
+
+2. Command: qsub alpha_div_SZ_stomach.pbs
+
+#!/bin/bash -l
+#PBS -l walltime=3:00:00,nodes=2:ppn=8,mem=22gb
+#PBS -m abe
+#PBS -M clayt092@umn.edu
+#PBS -e error_alpha
+#PBS -N alpha_div_SZ
+
+cd /home/johnsont/public/Jonathan_B_Clayton/Datasets/Primates/Singapore_Zoo_red_shanked_douc_2013_samples/SZ_RSD_stomach_contents/EMPV4/R1_only/NO_CHLOROPLASTS/Closed_reference_OTUpicking
+alpha_rarefaction.py -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -o wf_arare_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS/ -p alpha_params.txt -t /panfs/roc/groups/8/knightsd/public/gg_13_8_otus/trees/97_otus.tree
+
+
+
+V. Beta Diversity:
+
+beta_diversity_through_plots.py -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -t /panfs/roc/groups/8/knightsd/public/gg_13_8_otus/trees/97_otus.tree -e 24000 -o wf_bdiv_even146_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS/
+
+
+
+VI. Taxa Summary:
+
+1. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -o taxa_summary_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_#SampleID
+
+2. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -o taxa_summary_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_AnimalID_name -c AnimalID_name
+
+3. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -o taxa_summary_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_Sex -c Sex
+
+4. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -o taxa_summary_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_AgeClass -c AgeClass
+
+5. summarize_taxa_through_plots.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom -o taxa_summary_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_Alive_or_Deceased_as_of_091814 -c Alive_or_Deceased_as_of_091814
+
+
+
+VII. Species Gradient Coloring via R statistical package (Unifrac Distance Matrix):
+*Based on Dan Knights’s suggestion, the commands ran here did specify a particular unifrac file (-d), therefore the same distance matrix was used and therefore the output generates the same plots for each taxonomy level (L2-L6). In other words, the commands include a -d, thus providing the same distance matrix for taxonomy levels, which matches the distance matrixes generated in the original beta diversity plots. Plots for all taxonomic levels for both douc and howler sample sets generated.
+**Note: The MWAS package has been updated, which resulted in a change in the species gradient coloring command (as well as other commands). These changes are reflected below.
+
+Unweighted:
+1. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L2.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L2_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_gradients_NO_CHLOROPLASTS
+2. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L3.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L3_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_gradients_NO_CHLOROPLASTS
+3. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L4.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L4_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_gradients_NO_CHLOROPLASTS
+4. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L5.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L5_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_gradients_NO_CHLOROPLASTS
+5. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L6_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_gradients_NO_CHLOROPLASTS
+
+Weighted: 
+1. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L2.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L2_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_gradients_NO_CHLOROPLASTS
+2. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L3.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L3_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_gradients_NO_CHLOROPLASTS
+3. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L4.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L4_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_gradients_NO_CHLOROPLASTS
+4. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L5.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L5_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_gradients_NO_CHLOROPLASTS
+5. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -o L6_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_gradients_NO_CHLOROPLASTS
+
+
+
+VIII. Beta Diversity Plot (2D) via R statistical package (Unifrac Distance Matrix):
+*Note: The MWAS package has been updated, which resulted in a change in the beta diversity plot (2D) command (as well as other commands). These changes are reflected below.
+
+Unweighted:
+1. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c AnimalID_name -o L6_SZ_doucs_stomach_contents_microbiome_EMPV4_R1only_NO_CHLOROPLASTS_gradients_unifrac_unweighted_PCoA_AnimalID_name
+
+2. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Sex -o L6_SZ_doucs_stomach_contents_microbiome_EMPV4_R1only_NO_CHLOROPLASTS_gradients_unifrac_unweighted_PCoA_Sex
+
+3. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c AgeClass -o L6_SZ_doucs_stomach_contents_microbiome_EMPV4_R1only_NO_CHLOROPLASTS_gradients_unifrac_unweighted_PCoA_AgeClass
+
+4. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Alive_or_Deceased_as_of_091814 -o L6_SZ_doucs_stomach_contents_microbiome_EMPV4_R1only_NO_CHLOROPLASTS_gradients_unifrac_unweighted_PCoA_Alive_or_Deceased_as_of_091814
+
+Weighted:
+1. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c AnimalID_name -o L6_SZ_doucs_stomach_contents_microbiome_EMPV4_R1only_NO_CHLOROPLASTS_gradients_unifrac_weighted_PCoA_AnimalID_name
+
+2. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Sex -o L6_SZ_doucs_stomach_contents_microbiome_EMPV4_R1only_NO_CHLOROPLASTS_gradients_unifrac_weighted_PCoA_Sex
+
+3. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c AgeClass -o L6_SZ_doucs_stomach_contents_microbiome_EMPV4_R1only_NO_CHLOROPLASTS_gradients_unifrac_weighted_PCoA_AgeClass
+
+4. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M gradients -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -D EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_weighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Alive_or_Deceased_as_of_091814 -o L6_SZ_doucs_stomach_contents_microbiome_EMPV4_R1only_NO_CHLOROPLASTS_gradients_unifrac_weighted_PCoA_Alive_or_Deceased_as_of_091814
+
+
+
+XI. Beeswarm Plots via R statistical package:
+*Note: The MWAS package has been updated, which resulted in a change in the beeswarm command (as well as other commands). These changes are reflected below.
+**Note: When the following message is generated after running the command this means that there are not any statistically significant differences at the FDR chosen: Failed to find any features. There is no feature under the chosen FDR control. In this case, you can adjust the -A to a less stringent value or report that via this method (i.e., beeswarm plots) there were no statistically significant differences at the chosen FDR.
+***Note: For the commands below, AnimalID_name, Sex, AgeClass, and Alive_or_Deceased_as_of_091814 were not significant at FDR 0.05.
+
+1. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M beeswarm -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c AnimalID_name -o EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_beeswarm_AnimalID_name -A 0.05
+
+2. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M beeswarm -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Sex -o EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_beeswarm_Sex -A 0.05
+
+3. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M beeswarm -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c AgeClass -o EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_beeswarm_AgeClass -A 0.05
+
+4. Rscript $MWAS_DIR/bin/mwas_analysis.R -w plot -M beeswarm -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_L6.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Alive_or_Deceased_as_of_091814 -o EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_beeswarm_Alive_or_Deceased_as_of_091814 -A 0.05
+
+
+
+XII. Compute Taxonomy Ratios
+*Note: Using the following command to compute the Firmicutes to Bacteroidetes ratio for each primate species.
+
+All samples by #SampleID (this category includes all samples in this study):
+compute_taxonomy_ratios.py -i seqs_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS.biom --increased p__Firmicutes --decreased p__Bacteroidetes -o EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_NO_CHLOROPLASTS_firmicutes_to_bacteroidetes_ratio.txt
+
+
+
+XIII. Statistical Testing (compare_categories.py):
+
+ANOSIM:
+By Alive_or_Deceased_as_of_091814:
+99 permutations:
+compare_categories.py --method anosim -i EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Alive_or_Deceased_as_of_091814 -o anosim_99_out_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS_Alive_or_Deceased_as_of_091814 -n 99
+
+999 permutations:
+compare_categories.py --method anosim -i EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Alive_or_Deceased_as_of_091814 -o anosim_999_out_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS_Alive_or_Deceased_as_of_091814 -n 999
+
+
+PERMANOVA:
+By Alive_or_Deceased_as_of_091814:
+999 permutations:
+compare_categories.py --method permanova -i EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS.txt -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_031315.txt -c Alive_or_Deceased_as_of_091814 -o permanova_999_out_EMPV4_R1only_SZ_doucs_stomach_contents_microbiome_metadata_otus_unweighted_unifrac_dm_NO_CHLOROPLASTS_Alive_or_Deceased_as_of_091814 -n 999

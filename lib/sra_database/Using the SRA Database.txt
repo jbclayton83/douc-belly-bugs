@@ -1,0 +1,18 @@
+Working with the megalith that is SRA:
+1. add this to your bashrc: PATH=$PATH:/project/flatiron2/gabe/test/sratoolkit.2.8.2-1-ubuntu64/bin
+2. configure the toolkit to dump its temp files into a desired folder: `vdb-config -i` (otherwise it writes to your home folder and will silently fail for runs > 1GB)
+3. Go to the SRA project web-page of interest and download the table of "accessions" corresponding to all of the "runs" associated with the "experiment" under a manuscript's "bioproject" (WTF with these names!)
+    [example: find an SRA link while you're searching ncbi's bioProjects, or directly from a manuscript, leading you here: https://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?study=ERP003390 Then click on the "Runs" link on the right)
+4. Click on "RunInfoTable" button to get the mapping file. (Yes, it's sometimes a legit mapping file with useful metadata...)
+5. Click on "accession list" button to get a list of garbage needed for subsequent steps.
+6. Run `prefetch --option-file SRR_Acc_List.txt` on #5's list of garbage. It will download all the SRA runs in useless format to the path specified in #2
+7. Run Run `fastq-dump /path/to/the/thing/in/#2/sra/*`
+8. Your fastq files will be dumped in the current directory (run the above command from the directory that you wish the files to be dumped into)
+9. Clean out the SRA cache so that when you're dealing with new datasets in the future, sra won't re-dump the old files again and again (do this manually vis FileZilla)
+
+
+Appendix:
+7. cd /project/flatiron2/jonathan/sra_data/datasets/sra_prjna322656
+fastq-dump /project/flatiron2/jonathan/sra_data/sra/*
+
+

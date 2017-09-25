@@ -1,0 +1,9 @@
+Make combined fasta file:
+
+Public Datasets (/panfs/roc/groups/8/knightsd/clayt092/projects/douc_belly_bugs/public_datasets):
+Step 0: Get on msi with the isub below
+isub -n nodes=1:ppn=16 -m 32GB -w 12:00:00
+module load python
+
+Step 1: shi7 to make a combined fasta 
+shi7.py -i /panfs/roc/groups/8/knightsd/clayt092/projects/douc_belly_bugs/public_datasets/both/sra_prjna183679/stomach -o /panfs/roc/groups/8/knightsd/clayt092/projects/douc_belly_bugs/public_datasets/both/sra_prjna183679/stomach/shi7_output --adaptor Nextera --strip_underscore t --allow_outies f --threads 4 -SE

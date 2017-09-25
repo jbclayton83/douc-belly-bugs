@@ -1,0 +1,30 @@
+OTU Picking via Gabe:New 16S picking workflow with markerGMG, embalmer version "emb12", and embalmulate:
+
+Dataset: Ruminant vs. Macaque vs. Douc
+
+Combine multiple combined_seqs.fna files:
+cat *.fna > convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_combined_seqs.fasta
+
+merge_mapping_files.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_082417.txt,sra_prjeb4136_mapfile_v2.txt,sra_prjna272135_mapfile_v2.txt -o convergent_evolution_stomach_meta-analysis_merged_mapping_v2_ruminant_macaque_douc.txt -n 'Data not collected'
+
+Step 2: Align to 16S markerGMG version "PROK_170704", making a blast alignment file
+burst12_old -r /home/knightsd/algh0022/sop/PROK_170704.edx -a /home/knightsd/algh0022/sop/PROK_170704.acx -b /home/knightsd/algh0022/sop/PROK_170704.tax -q convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_combined_seqs.fasta -o convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_aligns.b6 -fr -n -m CAPITALIST -bs -i 0.935 -f -sa
+
+Step 3: Convert the blast alignment file to an otu and taxa table in QIIME legacy format 
+embalmulate convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_aligns.b6 convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_otutable.txt convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_taxatable.txt GGtrim
+
+Step 4: Make OTU table compatible with QIIME tree (it substitutes "s" the underscore "/_" with a space "/ " globally "g" in the original table and outputs (">") the converted table)
+sed 's/_/ /g' convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_otutable.txt > convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_QIIMEcompatibleOTUtable.txt
+
+QIIME:
+
+1. biom convert -i convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_QIIMEcompatibleOTUtable.txt -o convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_QIIMEcompatibleOTUtable.biom --table-type "otu table"   
+
+2. biom summarize-table -i convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_QIIMEcompatibleOTUtable.biom -o otu_summary_convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_QIIMEcompatibleOTUtable.txt
+
+3. Alpha Diversity: This following command is needed, as the alpha_params.txt file needs to be created manually: echo "alpha_diversity:metrics shannon,PD_whole_tree,chao1,observed_species" > alpha_params.txt
+
+alpha_rarefaction.py -i convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_QIIMEcompatibleOTUtable.biom -m convergent_evolution_stomach_meta-analysis_merged_mapping_v2_ruminant_macaque_douc.txt -o wf_arare_burst_convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc/ -p alpha_params.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre
+
+4. beta_diversity_through_plots.py -i convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc_QIIMEcompatibleOTUtable.biom -m convergent_evolution_stomach_meta-analysis_merged_mapping_v2_ruminant_macaque_douc.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre -e 1 -o wf_bdiv_burst_convergent_evolution_stomach_meta-analysis_ruminant_macaque_douc/
+

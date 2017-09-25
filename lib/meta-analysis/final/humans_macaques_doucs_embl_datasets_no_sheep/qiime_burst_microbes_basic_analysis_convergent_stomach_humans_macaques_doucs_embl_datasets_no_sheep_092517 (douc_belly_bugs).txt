@@ -1,0 +1,29 @@
+Comparisons between datasets 
+*The following comparisons are being made:
+
+I. Making OTU biom table:
+
+1. biom convert -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_humans_macaques_doucs_embl_datasets_no_sheep.txt -o convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_humans_macaques_doucs_embl_datasets_no_sheep.biom --table-type "otu table"   
+
+2. biom summarize-table -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_humans_macaques_doucs_embl_datasets_no_sheep.biom -o otu_summary_convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_humans_macaques_doucs_embl_datasets_no_sheep.txt
+
+
+
+II. Compute Core Microbiome: 
+
+1. compute_core_microbiome.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_humans_macaques_doucs_embl_datasets_no_sheep.biom -o otu_table_core_burst_convergent_evolution_stomach_meta-analysis_humans_macaques_doucs_embl_datasets_no_sheep
+
+
+
+III. Alpha Diversity:
+
+1. This following command is needed, as the alpha_params.txt file needs to be created manually: echo "alpha_diversity:metrics shannon,PD_whole_tree,chao1,observed_species" > alpha_params.txt
+
+alpha_rarefaction.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_humans_macaques_doucs_embl_datasets_no_sheep.biom -m convergent_evolution_stomach_meta-analysis_merged_mapping_v2_humans_macaques_doucs_embl_datasets_no_sheep.txt -o wf_arare_burst_convergent_evolution_stomach_meta-analysis_humans_macaques_doucs_embl_datasets_no_sheep/ -p alpha_params.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre
+
+
+
+VI. Beta Diversity:
+
+beta_diversity_through_plots.py -i convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_humans_macaques_doucs_embl_datasets_no_sheep.biom -m convergent_evolution_stomach_meta-analysis_merged_mapping_v2_humans_macaques_doucs_embl_datasets_no_sheep.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre -e 225 -o wf_bdiv_burst_convergent_evolution_stomach_meta-analysis_humans_macaques_doucs_embl_datasets_no_sheep/
+

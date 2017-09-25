@@ -1,0 +1,2 @@
+Combine multiple combined_seqs.fna files:
+cat *.fna > convergent_evolution_stomach_meta-analysis_combined_seqs.fasta

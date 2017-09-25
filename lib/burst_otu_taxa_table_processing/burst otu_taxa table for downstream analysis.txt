@@ -1,0 +1,11 @@
+BURST OTU_Taxa Table for Downstream Analysis:
+
+_How to modify for your use:_
+- Put the path and text-formatted taxa/OTU table name on lines 2-3. _If converted from biom, add skip=1 to read.delim_
+- Put in your desired level of taxa summarization on line 6 (L = whatever). Remember: kingdom=1, phylum=2, class=3, order=4, family=5, genus=6, species=7, strain=8.
+- If you actually used the GreenGenes 13_8 taxonomy (like QIIME): replace the ";" with "; " on line 7 only
+- To pad with NA's up to a desired level, uncomment line 12.
+- If you don't uncomment line 12, the script will truncate down to the lowest "real" taxonomic level in the string (more readable).
+- *To use with OTU table instead*, make sure you converted it from a BIOM file with `--header-key taxonomy` or else the taxonomy won't be included! Then:
+   * Replace `rownames(taxa)` with `as.character(taxa$taxonomy)` on line 7
+   * Replace `rowsum(taxa,taxaStrings)` with `rowsum(taxa[,-ncol(taxa)],taxaStrings)` on line 10
