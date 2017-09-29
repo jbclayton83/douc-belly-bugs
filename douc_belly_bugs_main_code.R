@@ -3,6 +3,137 @@
 map = read.delim('data/convergent_evolution_stomach_meta-analysis_merged_mapping_v2_humans_macaques_doucs_embl_datasets_no_sheep.txt', row.names = 1) # Grab the map
 
 
+### Laod and Filter OTU and Taxa tables with less than 1000 sequences ###
+taxa = read.delim('data/convergent_evolution_stomach_meta-analysis_taxatable_humans_macaques_doucs_embl_datasets_no_sheep.txt',row=1,as.is=T)
+taxa = taxa[,rownames(map)]  # sync the sample names for the Taxa table
+otu = read.delim('data/convergent_evolution_stomach_meta-analysis_otutable_humans_macaques_doucs_embl_datasets_no_sheep.txt',row=1,as.is=T)
+otu = otu[,rownames(map)]  # sync the sample names for the OTU table
+taxa.f = taxa[,colSums(taxa) >= 1000]
+otu.f = otu[,colSums(otu) >= 1000]
+map.f = map[colnames(otu.f),]
+
+
+#### F/B Ratio - Not Filtered ####
+pdf("results/not_filtered/ReadDepth_closed_bodysite.pdf",width=6,height=5.5)
+plot(colSums(taxa) ~ map$Bodysite,xlab="Bodysite",ylab="Read depth (closed)")
+dev.off()
+isFirmicutes = grepl('p__Firmicutes',rownames(taxa)) # Save "trues" for Firmicutes, false otherwise
+isBacteroides = grepl('p__Bacteroidetes',rownames(taxa)) # Like above for Bacteroidetes
+FBratio = log(colSums(taxa[isFirmicutes,])/colSums(taxa[isBacteroides,]))
+
+kruskal.test(FBratio ~ map$Bodysite)
+for (i in 1:length(levels(map$Bodysite))) for (j in i:length(levels(map$Bodysite))) {
+  if (i == j) next
+  p = wilcox.test(FBratio[map$Bodysite==levels(map$Bodysite)[i]],FBratio[map$Bodysite==levels(map$Bodysite)[j]])
+  cat(levels(map$Bodysite)[i]," vs ",levels(map$Bodysite)[j]," p = ",p$p.value,"\n",sep='')
+}
+pdf("results/not_filtered/FBratio_bodysite.pdf",width=6,height=5.5)
+plot(FBratio ~ map$Bodysite, xlab="Bodysite", ylab="Log F:B ratio")
+dev.off()
+df = data.frame(FBratio, map$Bodysite)     # Split manually into groups
+tapply(FBratio, map$Bodysite, mean)  # Get the means per group
+tapply(FBratio, map$Bodysite, sd)    # Gets the standard devs per group
+
+#plot(colSums(taxa.f[isBacteroides,]) ~ map.f$Bodysite)
+#plot(colSums(taxa.f[isFirmicutes,]) ~ map.f$Bodysite)
+
+#### F/B Ratio - Filtered at 1000 ####
+pdf("results/filtered_1000/ReadDepth_closed_bodysite_filtered_1000.pdf",width=6,height=5.5)
+plot(colSums(taxa.f) ~ map.f$Bodysite,xlab="Bodysite",ylab="Read depth (closed)")
+dev.off()
+isFirmicutes = grepl('p__Firmicutes',rownames(taxa.f)) # Save "trues" for Firmicutes, false otherwise
+isBacteroides = grepl('p__Bacteroidetes',rownames(taxa.f)) # Like above for Bacteroidetes
+FBratio = log(colSums(taxa.f[isFirmicutes,])/colSums(taxa.f[isBacteroides,]))
+
+kruskal.test(FBratio ~ map.f$Bodysite)
+for (i in 1:length(levels(map.f$Bodysite))) for (j in i:length(levels(map.f$Bodysite))) {
+  if (i == j) next
+  p = wilcox.test(FBratio[map.f$Bodysite==levels(map.f$Bodysite)[i]],FBratio[map.f$Bodysite==levels(map.f$Bodysite)[j]])
+  cat(levels(map.f$Bodysite)[i]," vs ",levels(map.f$Bodysite)[j]," p = ",p$p.value,"\n",sep='')
+}
+pdf("results/filtered_1000/FBratio_bodysite_filtered_1000.pdf",width=6,height=5.5)
+plot(FBratio ~ map.f$Bodysite, xlab="Bodysite", ylab="Log F:B ratio")
+dev.off()
+FBratio[FBratio==Inf]=1.5
+tapply(FBratio, map.f$Bodysite, mean)  # Get the means per group
+tapply(FBratio, map.f$Bodysite, sd)    # Gets the standard devs per group
+
+#plot(colSums(taxa.f[isBacteroides,]) ~ map.f$Bodysite)
+#plot(colSums(taxa.f[isFirmicutes,]) ~ map.f$Bodysite)
+
+
+#### PCoA plots - Not Filtered #### (requires map and otu table loaded) 
+source('lib/pcoa_helper.R') # This gives us our nice pcoa functions
+library(phyloseq)
+tree = read_tree_greengenes('data/PROK_170704.tre')
+otu.s = as.matrix(otu)  # Rip of the taxonomy column, as it is not needed 
+bray = vegdist(t(otu.s))             # Get some bray curtis distances
+pdf("results/not_filtered/bray_bodysite.pdf",width=6,height=4.75); plot_pcoa(bray,map,category='Bodysite');
+pdf("results/not_filtered/uuf_bodysite.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.s,map,tree,category='Bodysite',weight=F); 
+pdf("results/not_filtered/wuf_bodysite.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.s,map,tree,category='Bodysite',weight=T); 
+graphics.off()
+adonis(pcoa.u ~ map$Bodysite)       # Do stats for clustering (unweighted)
+adonis(pcoa.w ~ map$Bodysite)       # Do stats for clustering (weighted)
+adonis(bray ~ map$Bodysite)         # Do stats for bray-curtis too, why not
+pdf("results/not_filtered/bray_bodysite_species.pdf",width=6,height=4.75); plot_pcoa(bray,map,category='BodysiteSpecies');
+pdf("results/not_filtered/uuf_bodysite_species.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.s,map,tree,category='BodysiteSpecies',weight=F); 
+pdf("results/not_filtered/wuf_bodysite_species.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.s,map,tree,category='BodysiteSpecies',weight=T); 
+graphics.off()
+adonis(pcoa.u ~ map$BodysiteSpecies)       # Do stats for clustering (unweighted)
+adonis(pcoa.w ~ map$BodysiteSpecies)       # Do stats for clustering (weighted)
+adonis(bray ~ map$BodysiteSpecies)         # Do stats for bray-curtis too, why not
+
+#### PCoA plots - Filtered at 1000 #### (requires map and otu table loaded)
+source('lib/pcoa_helper.R') # This gives us our nice pcoa functions
+library(phyloseq)
+tree = read_tree_greengenes('data/PROK_170704.tre')
+otu.sf = as.matrix(otu.f)  # Rip of the taxonomy column, as it is not needed 
+bray.f = vegdist(t(otu.sf))             # Get some bray curtis distances
+pdf("results/filtered_1000/bray_bodysite_filtered_1000.pdf",width=6,height=4.75); plot_pcoa(bray.f,map.f,category='Bodysite');
+pdf("results/filtered_1000/uuf_bodysite_filtered_1000.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.sf,map.f,tree,category='Bodysite',weight=F); 
+pdf("results/filtered_1000/wuf_bodysite_filtered_1000.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.sf,map.f,tree,category='Bodysite',weight=T); 
+graphics.off()
+adonis(pcoa.u ~ map.f$Bodysite)       # Do stats for clustering (unweighted)
+adonis(pcoa.w ~ map.f$Bodysite)       # Do stats for clustering (weighted)
+adonis(bray.f ~ map.f$Bodysite)         # Do stats for bray-curtis too, why not
+pdf("results/filtered_1000/bray_bodysite_species_filtered_1000.pdf",width=6,height=4.75); plot_pcoa(bray.f,map.f,category='BodysiteSpecies');
+pdf("results/filtered_1000/uuf_bodysite_species_filtered_1000.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.sf,map.f,tree,category='BodysiteSpecies',weight=F); 
+pdf("results/filtered_1000/wuf_bodysite_species_filtered_1000.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.sf,map.f,tree,category='BodysiteSpecies',weight=T); 
+graphics.off()
+adonis(pcoa.u ~ map.f$BodysiteSpecies)       # Do stats for clustering (unweighted)
+adonis(pcoa.w ~ map.f$BodysiteSpecies)       # Do stats for clustering (weighted)
+adonis(bray.f ~ map.f$BodysiteSpecies)       # Do stats for bray-curtis too, why not
+
+
+#### Alpha diversity violin plots ####
+library(ggsignif)
+library(vegan)
+(mindepth = min(colSums(otu[,-ncol(otu)]))) # for row, -grep("Chloroplast",otu$taxonomy) ?
+otu.r = rrarefy(t(otu[,-ncol(otu)]),mindepth) # Rarefy to the minimum sample depth (1000)
+dix = "shannon"
+div = diversity(otu.r,index=dix)
+otu.ad = data.frame(Div=div, Bodysite=map$Bodysite)
+grps = levels(map$Bodysite)
+lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
+pdf(paste0("results/AlphaDiv_bodysite",dix,".pdf"),width=6,height=5.5)
+plot(ggplot(otu.ad,aes(x=Bodysite,y=Div,fill=Bodysite)) + ylab(lab) + geom_violin(alpha=0.3) + 
+       geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
+       geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 6.1) +
+       geom_signif(comparisons = list(grps[c(2,3)]), test='t.test', map_signif_level = T, y_position = 6.3) +
+       geom_jitter(aes(color=Bodysite),position=position_jitter(0.2),size=2) )
+dev.off()
+otu.cd = data.frame(Div=rowSums(otu.r > 0), Bodysite=map$Bodysite)
+lab = "Alpha Diversity (Observed OTUs)"
+pdf("results/AlphaDiv_ObsOTU_bodysite.pdf",width=6,height=5.5)
+plot(ggplot(otu.cd,aes(x=Bodysite,y=Div,fill=Bodysite)) + ylab(lab) + geom_violin(alpha=0.3) + 
+       geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
+       geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 5500) +
+       geom_signif(comparisons = list(grps[c(2,3)]), test='t.test', map_signif_level = T, y_position = 5850) +
+       geom_jitter(aes(color=Bodysite),position=position_jitter(0.2),size=2) )
+dev.off()
+
+
+
 #### PICRUST ####
 library(polycor)
 library(robCompositions)
@@ -132,89 +263,7 @@ legend("topright",      # location of the legend on the heatmap plot
        xpd=TRUE  # allow drawing outside
 )
 dev.off()
-#### Figure 6 Stuff ####
-# Manually generate fig 6 of the paper. 
-pdf("results/DietDiv.pdf",width=6,height=5.5)
-par(oma=c(0,2,0,0))                                  # Margins!
-myData = c(1,15,44,57)                               # Data!
-myplot = barplot(myData, names=levels(map$Lifestyle), ylim = c(0,62), xlab = "Lifestyle", ylab = "",
-                 col=lscolors)
-mtext("Dietary Biodiversity\n(Number of plant species)",side=2,line=3) # Special Y axis!
-text(myplot,myData,myData, pos=3)                    # Add numbers on top of the bars!
-dev.off()
 
-#### F/B Ratio ####
-otu = read.delim('data/EMP_seqs_R1_Doucs_otu_table_mc2_w_tax_open_ref_NO_CHLOROPLASTS.txt',row=1,skip=1,as.is=T)
-otu = otu[,c(rownames(map),"taxonomy")]  # sync the sample names for the OTU table
-pdf("results/ReadDepth_open.pdf",width=6,height=5.5)
-plot(colSums(otu[,-ncol(otu)]) ~ map$Bodysite,xlab="Bodysite",ylab="Read depth (open)",
-     col=lscolors,lwd=2)
-dev.off()
-isFirmicutes = grepl('p__Firmicutes',otu$taxonomy)     # Save "trues" for Firmicutes, false otherwise
-isBacteroides = grepl('p__Bacteroidetes',otu$taxonomy) # Like above for Bacteroidetes
-FBratio = log(colSums(otu[isFirmicutes,-ncol(otu)])/colSums(otu[isBacteroides,-ncol(otu)]))
-
-kruskal.test(FBratio ~ map$PA)
-for (i in 1:length(levels(map$PA))) for (j in i:length(levels(map$PA))) {
-  if (i == j) next
-  p = wilcox.test(FBratio[map$PA==levels(map$PA)[i]],FBratio[map$PA==levels(map$PA)[j]])
-  cat(levels(map$PA)[i]," vs ",levels(map$PA)[j]," p = ",p$p.value,"\n",sep='')
-}
-pdf("results/FBratio.pdf",width=6,height=5.5)
-plot(FBratio ~ map$PA, xlab="Bodysite", ylab="Log F:B ratio",col=lscolors,lwd=2)
-dev.off()
-df = data.frame(FBratio, map$PA)     # Split manually into groups
-tapply(df$FBratio, df$map.PA, mean)  # Get the means per group
-tapply(df$FBratio, df$map.PA, sd)    # Gets the standard devs per group
-
-#### Alpha diversity violin plots ####
-library(ggsignif)
-library(vegan)
-(mindepth = min(colSums(otu[,-ncol(otu)]))) # for row, -grep("Chloroplast",otu$taxonomy) ?
-otu.r = rrarefy(t(otu[,-ncol(otu)]),mindepth) # Rarefy to the minimum sample depth (XXXX)
-dix = "shannon"
-div = diversity(otu.r,index=dix)
-otu.ad = data.frame(Div=div, Bodysite=map$Bodysite)
-grps = levels(map$Bodysite)
-lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
-pdf(paste0("results/AlphaDiv_",dix,".pdf"),width=6,height=5.5)
-plot(ggplot(otu.ad,aes(x=Bodysite,y=Div,fill=Bodysite)) + ylab(lab) + geom_violin(alpha=0.3) + 
-       geom_signif(comparisons = list(grps[c(1,2)],grps[c(3,4)]), test='t.test', map_signif_level = T) + 
-       geom_signif(comparisons = list(grps[c(2,4)]), test='t.test', map_signif_level = T, y_position = 6.1) +
-       geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 6.3) +
-       geom_signif(comparisons = list(grps[c(1,4)]), test='t.test', map_signif_level = T, y_position = 6.5) +
-       geom_jitter(aes(color=Bodysite),position=position_jitter(0.2),size=2) )
-dev.off()
-otu.cd = data.frame(Div=rowSums(otu.r > 0), Bodysite=map$Bodysite)
-lab = "Alpha Diversity (Observed OTUs)"
-pdf("results/AlphaDiv_ObsOTU.pdf",width=6,height=5.5)
-plot(ggplot(otu.cd,aes(x=Bodysite,y=Div,fill=Bodysite)) + ylab(lab) + geom_violin(alpha=0.3) + 
-       geom_signif(comparisons = list(grps[c(1,2)],grps[c(3,4)]), test='t.test', map_signif_level = T) + 
-       geom_signif(comparisons = list(grps[c(2,4)]), test='t.test', map_signif_level = T, y_position = 5500) +
-       geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 5850) +
-       geom_signif(comparisons = list(grps[c(1,4)]), test='t.test', map_signif_level = T, y_position = 6200) +
-       geom_jitter(aes(color=Bodysite),position=position_jitter(0.2),size=2) )
-dev.off()
-
-#### PCoA plots #### (requires map and otu table loaded) 
-source('lib/pcoa_helper.R') # This gives us our nice pcoa functions
-library(phyloseq)
-tree = read_tree_greengenes('data/EMP_seqs_R1_Doucs_rep_set_open_ref.tre')
-otu.s = as.matrix(otu[,-ncol(otu)])  # Rip of the taxonomy column, as it is not needed 
-bray = vegdist(t(otu.s))             # Get some bray curtis distances
-pdf("results/bray.pdf",width=6,height=4.75); plot_pcoa(bray,map,category='Bodysite');
-pdf("results/uuf.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.s,map,tree,category='Bodysite',weight=F); 
-pdf("results/wuf.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.s,map,tree,category='Bodysite',weight=T); 
-graphics.off()
-adonis(pcoa.u ~ map$Bodysite)       # Do stats for clustering (unweighted)
-adonis(pcoa.w ~ map$Bodysite)       # Do stats for clustering (weighted)
-adonis(bray ~ map$Bodysite)         # Do stats for bray-curtis too, why not
-
-# do a boxplot of the main axis
-pdf("results/PC1_boxplot.pdf",width=8,height=3); par(oma=c(0,2,0,0))
-boxplot(pcoa(pcoa.u)$vectors[,1] ~ map$Bodysite, horizontal=T, las=2, ylim=c(-0.18,0.42),
-        col=lscolors)
-dev.off()
 
 #### Differential taxa testing ####
 library("gplots")
