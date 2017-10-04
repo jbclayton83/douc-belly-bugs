@@ -1,7 +1,9 @@
 #### DATA WRANGLING ####
 #setwd('/data/analyses/monkey/') # Sets the working directory
 map = read.delim('data/convergent_evolution_stomach_meta-analysis_merged_mapping_v2_humans_macaques_doucs_embl_datasets_no_sheep.txt', row.names = 1) # Grab the map
-
+NBS = as.character(map$Bodysite)
+NBS[NBS=="Stomach contents"] = "Foregut"
+map$Bodysite = factor(NBS,levels = c("Rumen","Foregut","Stomach"),ordered = T)
 
 ### Laod and Filter OTU and Taxa tables with less than 1000 sequences ###
 taxa = read.delim('data/convergent_evolution_stomach_meta-analysis_taxatable_humans_macaques_doucs_embl_datasets_no_sheep.txt',row=1,as.is=T)
@@ -55,6 +57,7 @@ pdf("results/filtered_1000/FBratio_bodysite_filtered_1000.pdf",width=6,height=5.
 plot(FBratio ~ map.f$Bodysite, xlab="Bodysite", ylab="Log F:B ratio")
 dev.off()
 FBratio[FBratio==Inf]=1.5
+summary(FBratio)
 tapply(FBratio, map.f$Bodysite, mean)  # Get the means per group
 tapply(FBratio, map.f$Bodysite, sd)    # Gets the standard devs per group
 
@@ -106,33 +109,317 @@ adonis(bray.f ~ map.f$BodysiteSpecies)       # Do stats for bray-curtis too, why
 
 
 #### Alpha diversity violin plots ####
-library(ggsignif)
 library(vegan)
-(mindepth = min(colSums(otu[,-ncol(otu)]))) # for row, -grep("Chloroplast",otu$taxonomy) ?
-otu.r = rrarefy(t(otu[,-ncol(otu)]),mindepth) # Rarefy to the minimum sample depth (1000)
-dix = "shannon"
-div = diversity(otu.r,index=dix)
-otu.ad = data.frame(Div=div, Bodysite=map$Bodysite)
+(mindepth = min(colSums(otu.f))) # for row, -grep("Chloroplast",otu$taxonomy) ?
+otu.r = rrarefy(t(otu.f),mindepth) # Rarefy to the minimum sample depth (1000)
+div.shannon = diversity(otu.r,"shannon")
+div.isimp = diversity(otu.r,"invsimpson")
+plot(div.isimp~map.f$Bodysite, xlab="Body Site",ylab="Shannon Diversity")
+plot(div.shannon~map.f$Bodysite, xlab="Body Site",ylab="Inverse Simpson Diversity")
+plot(rowSums(otu.r > 0) ~ map.f$Bodysite, xlab="Body Site",ylab="Number of OTUs")
+
+## old alpha
+library(ggsignif)
+otu.ad = data.frame(Div=div.shannon, Body_site=map.f$Bodysite)
 grps = levels(map$Bodysite)
 lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
 pdf(paste0("results/AlphaDiv_bodysite",dix,".pdf"),width=6,height=5.5)
-plot(ggplot(otu.ad,aes(x=Bodysite,y=Div,fill=Bodysite)) + ylab(lab) + geom_violin(alpha=0.3) + 
+plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) +xlab("Body Site") + geom_violin(alpha=0.3) + 
        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
-       geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 6.1) +
-       geom_signif(comparisons = list(grps[c(2,3)]), test='t.test', map_signif_level = T, y_position = 6.3) +
-       geom_jitter(aes(color=Bodysite),position=position_jitter(0.2),size=2) )
+       geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 4.4) +
+       geom_signif(comparisons = list(grps[c(2,3)]), test='t.test', map_signif_level = T, y_position = 4.8) +
+       geom_jitter(aes(color=Body_site),position=position_jitter(0.2),size=2)  )
 dev.off()
-otu.cd = data.frame(Div=rowSums(otu.r > 0), Bodysite=map$Bodysite)
-lab = "Alpha Diversity (Observed OTUs)"
-pdf("results/AlphaDiv_ObsOTU_bodysite.pdf",width=6,height=5.5)
-plot(ggplot(otu.cd,aes(x=Bodysite,y=Div,fill=Bodysite)) + ylab(lab) + geom_violin(alpha=0.3) + 
+otu.ad = data.frame(Div=rowSums(otu.r > 0), Body_site=map.f$Bodysite)
+grps = levels(map$Bodysite)
+lab = "Alpha Diversity (Number of OTUs)" 
+pdf(paste0("results/numOTU_bodysite.pdf"),width=6,height=5.5)
+plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) +xlab("Body Site") + geom_violin(alpha=0.3) + 
        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
-       geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 5500) +
-       geom_signif(comparisons = list(grps[c(2,3)]), test='t.test', map_signif_level = T, y_position = 5850) +
-       geom_jitter(aes(color=Bodysite),position=position_jitter(0.2),size=2) )
+       geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 130) +
+       geom_signif(comparisons = list(grps[c(2,3)]), test='t.test', map_signif_level = T, y_position = 140) +
+       geom_jitter(aes(color=Body_site),position=position_jitter(0.2),size=2)  )
 dev.off()
 
+#### Differential taxa testing ####
+library("gplots")
+library("RColorBrewer")
+library(robCompositions) # Composition magic
+library(polycor)
+library(beeswarm)
+library(reshape2)
 
+bT = c(2,4,6,7)  # Levels to consider for the bugs
+pT = c(2,3,3,4)  # Levels to consider for the plants
+lscolors = c("red","green","blue")
+L = 1
+for (L in 1:length(bT)) {
+  # Massage the taxa names
+  split = strsplit(rownames(taxa.f),";") #[-grep("c__Chloroplast",rownames(taxa.f))],";")        # Split by semicolon into levels
+  taxaStrings = sapply(split,function(x) paste(x[1:bT[L]],collapse=";"))           # Create collapsed names
+  for (i in 1:7) taxaStrings = gsub("(;[A-z]__$)?(;NA$)?","",taxaStrings,perl=T)   # Clean tips
+  otu.t = rowsum(taxa.f,taxaStrings)   #[-grep("c__Chloroplast",otu$taxonomy),-ncol(otu)],taxaStrings) # Collapse table by name
+  
+ 
+  # Filter out bugs that don't appear in enough samples
+  select = rowSums(otu.t > 0) > min(table(map.f$Bodysite))/2 # reasonable general min
+  otu.t = otu.t[select,]                                    # Apply drop mask
+  otu.t = otu.t[,rownames(map.f)]                             # Sync with map samp order
+  otu.n = sweep(otu.t,2,colSums(otu.t),'/');                # Normalize to relative abundance
+  
+  otu.c = impRZilr(t(otu.t)+0.0,dl=rep(1,nrow(otu.t)),maxit = 3,verbose = T,method = "lm") # zeros
+  otu.c = t(cenLR(otu.c$x)$x.clr)    # Centered log-ratio transform for compositions
+  colnames(otu.c) = colnames(otu.t)  # Because this gets rid of the names...
+  otu.t = otu.c                      # otu.t is our active table; give it the CLR
+  
+  # Go through each taxon and test for significance w/group
+  otu.t = as.matrix(otu.t)
+  ntax = nrow(otu.t)
+  BS = map$Bodysite # %in% c("Rumen","Stomach","Stomach contents") # For selecting between rumen, stomach, and stomach contents
+  Grp.Pvals=rep(1,ntax)
+  Grp.Corrs=rep(0,ntax)
+  Wld.Pvals=rep(1,ntax)
+  KW.Pvals=rep(1,ntax)
+  for (m.ix in 1:ntax) {  # Loop through all the rows (taxa)
+    try({ # Because some correlations may be inadmissable
+      ps = polyserial(otu.t[m.ix,],map.f$Bodysite,ML=T,std.err = T)
+      if (is.na(pchisq(ps$chisq, ps$df))) next # Invalid correlation
+      Grp.Corrs[m.ix] = ps$rho             # Find intensity of correlation
+      Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) # And p-value on this
+    },silent=T)
+    #Wld.Pvals[m.ix] = wilcox.test(otu.t[m.ix,BS] ~ map$Bodysite[BS])$p.value
+    KW.Pvals[m.ix] = kruskal.test(otu.t[m.ix,] ~ map.f$Bodysite)$p.val
+  }
+  
+  ## Taxa barplots -- Top 15 most abundant (kruskal sig. + other?)
+  otu.m = otu.n #[-grep("Viridiplantae",rownames(otu.n)),,drop=F]
+  otu.m = sweep(sqrt(otu.m),2,colSums(sqrt(otu.m)),'/')
+  meanAb = apply(otu.m,1,FUN=function(x) tapply(x, map.f$Bodysite, mean)) # group mean
+  ranked = order(apply(meanAb,2,max),decreasing=T)
+  otu.m = otu.m[ranked,]
+  
+  # Truncate names to last 2 informative levels
+  split = strsplit(rownames(otu.m),";")        # Split by semicolon into levels
+  Taxa = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
+  lim = 25
+  if (nrow(otu.m) > lim) Taxa[lim:nrow(otu.m)] = "Other"
+  otu.m = rowsum(otu.m,Taxa)
+  
+  # Sort by average abundance for display
+  byAbundance = rownames(otu.m)[order(rowMeans(otu.m),decreasing=T)]
+  
+  # Acrobatics for ggplot2 (yes, this is inane)
+  otu.m = data.frame(t(otu.m),check.names=F)      # flip table
+  otu.m$SampleID = rownames(otu.m)  # add a column for the sample IDs
+  map.f$SampleID = rownames(map.f)      # add a column for the sample IDs
+  
+  # The following separates taxa abundances per sample, then splices in the column of interest
+  otu.m = melt(otu.m, id.vars = "SampleID", variable.name = "Taxa", value.name = "RelativeAbundance")
+  otu.m = merge(otu.m, map.f[,c("SampleID","Bodysite")], by="SampleID")
+  otu.m$Taxa = factor(otu.m$Taxa,levels=byAbundance,ordered=T) # add Taxa column
+  
+  ## Plot according to Bodysite, sorted by abundance
+  pdf(paste0("results/TaxaSummary_L",bT[L],".pdf"),width = 8,height=7) # Make room for legend
+  plot(ggplot(otu.m, aes(x = Bodysite, y = RelativeAbundance, fill = Taxa)) +
+         geom_bar(stat ="identity", position="fill") + labs(x="Bodysite",y="Root Relative Abundance") +
+         guides(fill=guide_legend(ncol=1)) +
+         scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
+                                    "green4",
+                                    "#6A3D9A", # purple
+                                    "#FF7F00", # orange
+                                    "black","gold1",
+                                    "skyblue2","#FB9A99", # lt pink
+                                    "palegreen2",
+                                    "#CAB2D6", # lt purple
+                                    "#FDBF6F", # lt orange
+                                    "gray70", "khaki2",
+                                    "maroon","orchid1","deeppink1","blue1","steelblue4",
+                                    "darkturquoise","green1","yellow4","yellow3",
+                                    "darkorange4","brown"))) 
+  dev.off()
+  
+  ## Display differential taxa/stats
+  # Adjust for multiple tests, sort by significance
+  gpb = Grp.Pvals; wpb = KW.Pvals;
+  Grp.Pvals = p.adjust(gpb)
+  KW.Pvals = p.adjust(wpb)
+  res = data.frame(KW.Pvals, Grp.Pvals, Grp.Corrs,row.names=rownames(otu.t))
+  res = res[order(res$KW.Pvals),]
+  
+  # Add bivariate filter
+  sig = 0.05
+  selection = res$KW.Pvals < sig #& res$Wld.Pvals < sig & abs(res$Grp.Corrs) > 0.3
+  
+  # Display all significant with p < 0.05
+  num_sig = sum(selection, na.rm = T) # Count how many are significant
+  res = res[selection,]
+  # Truncate names to last 2 informative levels
+  split = strsplit(rownames(res),";")        # Split by semicolon into levels
+  res$short = sapply(split,function(x) paste(tail(x,2),collapse=";"))
+  
+  #R_ix = map.f$Bodysite=="Rumen"          # Stores "true" if monkey is captive, else "false"
+  #S_ix = map.f$Bodysite=="Stomach"             # As above. Use these to select just wild/captive
+  #SC_ix = map.f$Bodysite=="Foregut"             # As above. Use these to select just wild/captive
+  pdf(paste0("results/TaxaSwarms_L",bT[L],".pdf"),width = 6.5,height=6.5)
+  sink(paste0("results/Taxa_Significance_L",bT[L],".txt"))                  # Get ready to write the significant ones
+  cat("Taxon\tPolyserial_Q\tPolyserial_Cor\tBodySite_Q\n")  # Print header
+  if (num_sig) for (i in 1:num_sig) {
+    taxon = rownames(res)[i]
+    cat(res[taxon,]$short,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$KW.Pvals[i],'\t','\n',sep='')
+    beeswarm(otu.t[taxon,] ~ map.f$Bodysite, xlab="Body Site",ylab="CLR Relative Abundance",main=res[taxon,]$short,
+             col=alpha(lscolors,0.7),
+             cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
+    bxplot(otu.t[taxon,] ~ map.f$Bodysite, add = TRUE)
+  }
+  sink(NULL)
+  dev.off()
+  
+  ## Heatmap
+  # Need to have created the clr taxa[+plant] table as a matrix
+  my_palette <- colorRampPalette(c("blue", "black", "yellow"))(n = 299) # Sebastian Raschka
+  gl = map.f$Bodysite
+  glpos = c(grep("Rumen",gl),grep("Stomach",gl),grep("Foregut",gl))
+  gl = gl[glpos]
+  mat = otu.t[rownames(res),glpos]
+  #mat = mat[,rownames(mat)] #[-grep("Viridiplantae",rownames(mat)),,drop=F]
+  #mat = sweep(mat,1,max(apply(mat,1,max),apply(mat,1,min)),'/')
+  
+  # Truncate names to last 2 informative levels
+  split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
+  rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
+  
+  levels(gl)= c("red","green","blue")# lscolors 
+  png(paste0("results/Taxa_heatmap_L",bT[L],".png"),  # create PNG for the heat map        
+      width = 8*300,                        # 8 x 300 pixels
+      height = 6*300,
+      res = 300,                              # 300 pixels per inch
+      pointsize = 10)                          # smaller font size
+  heatmap.2(mat,
+            #cellnote = mat,  # same data set for cell labels
+            main = "", # heat map title
+            notecol="black",      # change font color of cell labels to black
+            density.info="none",  # turns off density plot inside color legend
+            trace="none",         # turns off trace lines inside the heat map
+            margins = c(2,22),     # widens margins around plot
+            col=my_palette,       # use on color palette defined earlier
+            #breaks=col_breaks,    # enable color transition at specified limits
+            ColSideColors = as.character(gl),
+            dendrogram="row",     # only draw a row dendrogram
+            lhei=c(1,4.7), lwid=c(1,5),
+            labCol = "",
+            hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete"),
+            Colv="NA"            # turn off column clustering
+  )
+  par(lend = 1)           # square line ends for the color legend
+  legend("topright",      # location of the legend on the heatmap plot
+         inset=c(.1,-0), # adjust placement upward
+         legend = levels(map.f$Bodysite), # category labels
+         col = levels(gl),  # color key
+         lty= 1,            # line style
+         lwd = 10,          # line width
+         cex = 0.65,
+         xpd=TRUE  # allow drawing outside
+  )
+  dev.off()
+  
+  
+}
+
+# Final combo heatmap
+# with more taxa
+Grp.Pvals = p.adjust(gpb)
+Wld.Pvals = p.adjust(wpb)
+res = data.frame(Grp.Pvals, Grp.Corrs, Wld.Pvals,row.names=rownames(otu.t))
+res = res[order(res$Grp.Corrs),]
+selection = res$Grp.Pvals < 0.05 & res$Wld.Pvals < 0.01 & abs(res$Grp.Corrs) > 0.45
+sum(selection)
+res = res[selection,]
+
+mat = otu.t[rownames(res),glpos]
+# Truncate names to last 2 informative levels
+split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
+rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
+
+levels(gl)= lscolors 
+png(paste0("results/BiClust_dense.png"),  # create PNG for the heat map        
+    width = 8*300,                        # 8 x 300 pixels
+    height = 6*300,
+    res = 300,                              # 300 pixels per inch
+    pointsize = 9)                          # smaller font size
+heatmap.2(mat,
+          #cellnote = mat,  # same data set for cell labels
+          main = "", # heat map title
+          notecol="black",      # change font color of cell labels to black
+          density.info="none",  # turns off density plot inside color legend
+          trace="none",         # turns off trace lines inside the heat map
+          margins = c(2,22),     # widens margins around plot
+          col=my_palette,       # use on color palette defined earlier
+          #breaks=col_breaks,    # enable color transition at specified limits
+          ColSideColors = as.character(gl),
+          #dendrogram="row",     # only draw a row dendrogram
+          lhei=c(1,4.7), lwid=c(1,5),
+          labCol = "",
+          hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete")
+          #Colv="NA"            # turn off column clustering
+)
+par(lend = 1)           # square line ends for the color legend
+legend("topright",      # location of the legend on the heatmap plot
+       inset=c(.1,-0), # adjust placement upward
+       legend = levels(map$Lifestyle), # category labels
+       col = levels(gl),  # color key
+       lty= 1,            # line style
+       lwd = 10,          # line width
+       cex = 0.65,
+       xpd=TRUE  # allow drawing outside
+)
+dev.off()
+
+Grp.Pvals = p.adjust(gpb)
+Wld.Pvals = p.adjust(wpb)
+res = data.frame(Grp.Pvals, Grp.Corrs, Wld.Pvals,row.names=rownames(otu.t))
+res = res[order(res$Grp.Corrs),]
+selection = res$Grp.Pvals < 0.05 & res$Wld.Pvals < 0.001 & abs(res$Grp.Corrs) > 0.8
+sum(selection)
+res = res[selection,]
+
+mat = otu.t[rownames(res),glpos,drop=F]
+# Truncate names to last 2 informative levels
+split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
+rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
+
+levels(gl)= lscolors 
+png(paste0("results/BiClust_sparse.png"),  # create PNG for the heat map        
+    width = 8*300,                        # 8 x 300 pixels
+    height = 6*300,
+    res = 300,                              # 300 pixels per inch
+    pointsize = 9)                          # smaller font size
+heatmap.2(mat,
+          #cellnote = mat,  # same data set for cell labels
+          main = "", # heat map title
+          notecol="black",      # change font color of cell labels to black
+          density.info="none",  # turns off density plot inside color legend
+          trace="none",         # turns off trace lines inside the heat map
+          margins = c(2,22),     # widens margins around plot
+          col=my_palette,       # use on color palette defined earlier
+          #breaks=col_breaks,    # enable color transition at specified limits
+          ColSideColors = as.character(gl),
+          #dendrogram="row",     # only draw a row dendrogram
+          lhei=c(1,4.7), lwid=c(1,5),
+          labCol = "",
+          hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete")
+          #Colv="NA"            # turn off column clustering
+)
+par(lend = 1)           # square line ends for the color legend
+legend("topright",      # location of the legend on the heatmap plot
+       inset=c(.1,-0), # adjust placement upward
+       legend = levels(map$Lifestyle), # category labels
+       col = levels(gl),  # color key
+       lty= 1,            # line style
+       lwd = 10,          # line width
+       cex = 0.65,
+       xpd=TRUE  # allow drawing outside
+)
+dev.off()
 
 #### PICRUST ####
 library(polycor)
@@ -265,333 +552,3 @@ legend("topright",      # location of the legend on the heatmap plot
 dev.off()
 
 
-#### Differential taxa testing ####
-library("gplots")
-library("RColorBrewer")
-library(robCompositions) # Composition magic
-library(polycor)
-library(beeswarm)
-library(reshape2)
-
-bT = c(2,4,6,7)  # Levels to consider for the bugs
-pT = c(2,3,3,4)  # Levels to consider for the plants
-for (L in 1:length(bT)) {
-  # Massage the taxa names
-  split = strsplit(otu$taxonomy[-grep("c__Chloroplast",otu$taxonomy)],"; ")        # Split by semicolon into levels
-  taxaStrings = sapply(split,function(x) paste(x[1:bT[L]],collapse=";"))           # Create collapsed names
-  for (i in 1:7) taxaStrings = gsub("(;[A-z]__$)?(;NA$)?","",taxaStrings,perl=T)   # Clean tips
-  otu.t = rowsum(otu[-grep("c__Chloroplast",otu$taxonomy),-ncol(otu)],taxaStrings) # Collapse table by name
-  
-  ## Chloroplasts (can be skipped)
-  ch = read.delim("data/chloro95y.tax",row=1)
-  split = strsplit(rownames(ch),";")
-  taxaStrings = sapply(split,function(x) paste(x[1:pT[L]],collapse=";"))          # Split by semicolon into levels
-  for (i in 1:7) taxaStrings = gsub("(;[A-z]__$)?(;NA$)?","",taxaStrings,perl=T)  # Clean tips
-  ch.t = rowsum(ch,taxaStrings,drop=F)                    # Collapse table by name
-  sz = merge(t(as.matrix(otu.t)),t(ch.t),by=0,all=T)      # Merge chloroplasts and taxa
-  rownames(sz) = sz$Row.names                             # Repopulate row names with faux column
-  sz = t(as.matrix(sz[,2:ncol(sz)]))                      # remove faux column and flip it back
-  sz[is.na(sz)] = 0                                       # pad empty columns with 0 counts
-  otu.t = sz                                              # Replace original taxa table with merged one
-  #limits = t(rbind(rowSums(otu.t > 0),rowMeans(otu.t)))   # Visualization purposes only: 
-  #limits = limits[order(limits[,1]),]                     # What do my samples look like?
-  
-  # Filter out bugs that don't appear in enough samples
-  select = rowSums(otu.t > 0) > min(table(map$Lifestyle))/2 # reasonable general min
-  otu.t = otu.t[select,]                                    # Apply drop mask
-  otu.t = otu.t[,rownames(map)]                             # Sync with map samp order
-  otu.n = sweep(otu.t,2,colSums(otu.t),'/');                # Normalize to relative abundance
-  
-  otu.c = impRZilr(t(otu.t),dl=rep(1,nrow(otu.t)),maxit = 3,verbose = T,method = "lm") # zeros
-  otu.c = t(cenLR(otu.c$x)$x.clr)    # Centered log-ratio transform for compositions
-  colnames(otu.c) = colnames(otu.t)  # Because this gets rid of the names...
-  otu.t = otu.c                      # otu.t is our active table; give it the CLR
-  
-  # Go through each taxon and test for significance w/group
-  otu.t = as.matrix(otu.t)
-  ntax = nrow(otu.t)
-  BS = map$Bodysite %in% c("Rumen","Stomach","Stomach contents") # For selecting between rumen, stomach, and stomach contents
-  Grp.Pvals=rep(1,ntax)
-  Grp.Corrs=rep(0,ntax)
-  Wld.Pvals=rep(1,ntax)
-  KW.Pvals=rep(1,ntax)
-  for (m.ix in 1:ntax) {  # Loop through all the rows (taxa)
-    try({ # Because some correlations may be inadmissable
-      ps = polyserial(otu.t[m.ix,],map$PA,ML=T,std.err = T)
-      if (is.na(pchisq(ps$chisq, ps$df))) next # Invalid correlation
-      Grp.Corrs[m.ix] = ps$rho             # Find intensity of correlation
-      Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) # And p-value on this
-    },silent=T)
-    Wld.Pvals[m.ix] = wilcox.test(otu.t[m.ix,BS] ~ map$Bodysite[BS])$p.value
-    KW.Pvals[m.ix] = kruskal.test(otu.t[m.ix,] ~ map$Bodysite)$p.val
-  }
-  
-  ## Taxa barplots -- Top 15 most abundant (kruskal sig. + other?)
-  otu.m = otu.n[-grep("Viridiplantae",rownames(otu.n)),,drop=F]
-  otu.m = sweep(sqrt(otu.m),2,colSums(sqrt(otu.m)),'/')
-  meanAb = apply(otu.m,1,FUN=function(x) tapply(x, map$Bodysite, mean)) # group mean
-  ranked = order(apply(meanAb,2,max),decreasing=T)
-  otu.m = otu.m[ranked,]
-  
-  # Truncate names to last 2 informative levels
-  split = strsplit(rownames(otu.m),";")        # Split by semicolon into levels
-  Taxa = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
-  lim = 25
-  if (nrow(otu.m) > lim) Taxa[lim:nrow(otu.m)] = "Other"
-  otu.m = rowsum(otu.m,Taxa)
-  
-  # Sort by average abundance for display
-  byAbundance = rownames(otu.m)[order(rowMeans(otu.m),decreasing=T)]
-  
-  # Acrobatics for ggplot2 (yes, this is inane)
-  otu.m = data.frame(t(otu.m),check.names=F)      # flip table
-  otu.m$SampleID = rownames(otu.m)  # add a column for the sample IDs
-  map$SampleID = rownames(map)      # add a column for the sample IDs
-  
-  # The following separates taxa abundances per sample, then splices in the column of interest
-  otu.m = melt(otu.m, id.vars = "SampleID", variable.name = "Taxa", value.name = "RelativeAbundance")
-  otu.m = merge(otu.m, map[,c("SampleID","Bodysite")], by="SampleID")
-  otu.m$Taxa = factor(otu.m$Taxa,levels=byAbundance,ordered=T) # add Taxa column
-  
-  ## Plot according to Bodysite, sorted by abundance
-  pdf(paste0("results/TaxaSummary_L",bT[L],".pdf"),width = 8,height=7) # Make room for legend
-  plot(ggplot(otu.m, aes(x = Bodysite, y = RelativeAbundance, fill = Taxa)) +
-         geom_bar(stat ="identity", position="fill") + labs(x="Bodysite",y="Root Relative Abundance") +
-         guides(fill=guide_legend(ncol=1)) +
-         scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
-                                    "green4",
-                                    "#6A3D9A", # purple
-                                    "#FF7F00", # orange
-                                    "black","gold1",
-                                    "skyblue2","#FB9A99", # lt pink
-                                    "palegreen2",
-                                    "#CAB2D6", # lt purple
-                                    "#FDBF6F", # lt orange
-                                    "gray70", "khaki2",
-                                    "maroon","orchid1","deeppink1","blue1","steelblue4",
-                                    "darkturquoise","green1","yellow4","yellow3",
-                                    "darkorange4","brown"))) 
-  dev.off()
-  
-  ## Display differential taxa/stats
-  # Adjust for multiple tests, sort by significance
-  gpb = Grp.Pvals; wpb = Wld.Pvals;
-  Grp.Pvals = p.adjust(gpb)
-  Wld.Pvals = p.adjust(wpb)
-  res = data.frame(Grp.Pvals, Grp.Corrs, Wld.Pvals,row.names=rownames(otu.t))
-  res = res[order(res$Grp.Corrs),]
-  
-  # Add bivariate filter
-  sig = 0.05
-  selection = res$Grp.Pvals < sig & res$Wld.Pvals < sig & abs(res$Grp.Corrs) > 0.3
-  
-  # Display all significant with p < 0.05
-  num_sig = sum(selection, na.rm = T) # Count how many are significant
-  res = res[selection,]
-  # Truncate names to last 2 informative levels
-  split = strsplit(rownames(res),";")        # Split by semicolon into levels
-  res$short = sapply(split,function(x) paste(tail(x,2),collapse=";"))
-  
-  R_ix = map$Bodysite=="Rumen"          # Stores "true" if monkey is captive, else "false"
-  S_ix = map$Bodysite=="Stomach"             # As above. Use these to select just wild/captive
-  SC_ix = map$CaptiveWild=="Stomach content"             # As above. Use these to select just wild/captive
-  pdf(paste0("results/TaxaSwarms_L",bT[L],".pdf"),width = 6.5,height=6.5)
-  sink(paste0("results/Taxa_Significance_L",bT[L],".txt"))                  # Get ready to write the significant ones
-  cat("Taxon\tPolyserial_Q\tPolyserial_Cor\tCaptiveVsWild_Q\tTrendInCaptivity\n")  # Print header
-  if (num_sig) for (i in 1:num_sig) {
-    taxon = rownames(res)[i]
-    upInCaptive = mean(otu.t[taxon,C_ix]) > mean(otu.t[taxon,W_ix]) # compare avgs
-    cat(res[taxon,]$short,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$Wld.Pvals[i],'\t',
-        ifelse(upInCaptive,"UP","DOWN"),'\n',sep='')
-    beeswarm(otu.t[taxon,] ~ map$PA, xlab="Lifestyle",ylab="CLR Relative Abundance",main=res[taxon,]$short,
-             col=alpha(lscolors,0.7),cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
-    bxplot(otu.t[taxon,] ~ map$PA, add = TRUE)
-  }
-  sink(NULL)
-  dev.off()
-  
-  ## Heatmap
-  # Need to have created the clr taxa[+plant] table as a matrix
-  my_palette <- colorRampPalette(c("blue", "black", "yellow"))(n = 299) # Sebastian Raschka
-  gl = map$Bodysite
-  glpos = c(grep("Rumen",gl),grep("Stomach",gl),grep("Stomach contents",gl))
-  gl = gl[glpos]
-  mat = otu.t[rownames(res),glpos]
-  mat = mat[-grep("Viridiplantae",rownames(mat)),,drop=F]
-  #mat = sweep(mat,1,max(apply(mat,1,max),apply(mat,1,min)),'/')
-  
-  # Truncate names to last 2 informative levels
-  split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
-  rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
-  
-  levels(gl)= lscolors 
-  png(paste0("results/Taxa_heatmap_L",bT[L],".png"),  # create PNG for the heat map        
-      width = 8*300,                        # 8 x 300 pixels
-      height = 6*300,
-      res = 300,                              # 300 pixels per inch
-      pointsize = 10)                          # smaller font size
-  heatmap.2(mat,
-            #cellnote = mat,  # same data set for cell labels
-            main = "", # heat map title
-            notecol="black",      # change font color of cell labels to black
-            density.info="none",  # turns off density plot inside color legend
-            trace="none",         # turns off trace lines inside the heat map
-            margins = c(2,22),     # widens margins around plot
-            col=my_palette,       # use on color palette defined earlier
-            #breaks=col_breaks,    # enable color transition at specified limits
-            ColSideColors = as.character(gl),
-            dendrogram="row",     # only draw a row dendrogram
-            lhei=c(1,4.7), lwid=c(1,5),
-            labCol = "",
-            hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete"),
-            Colv="NA"            # turn off column clustering
-  )
-  par(lend = 1)           # square line ends for the color legend
-  legend("topright",      # location of the legend on the heatmap plot
-         inset=c(.1,-0), # adjust placement upward
-         legend = levels(map$Lifestyle), # category labels
-         col = levels(gl),  # color key
-         lty= 1,            # line style
-         lwd = 10,          # line width
-         cex = 0.65,
-         xpd=TRUE  # allow drawing outside
-  )
-  dev.off()
-  
-  # repeat for plants alone
-  mat = otu.t[rownames(res),glpos]
-  mat = mat[grep("Viridiplantae",rownames(mat)),,drop=F]
-  if (nrow(mat) < 2) next
-  # Truncate names to last 2 informative levels
-  split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
-  rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
-  
-  png(paste0("results/Plant_heatmap_L",pT[L],".png"),  # create PNG for the heat map        
-      width = 8*300,                        # 5 x 300 pixels
-      height = 6*300,
-      res = 300,                              # 300 pixels per inch
-      pointsize = 11)                          # smaller font size
-  heatmap.2(mat,
-            #cellnote = mat,  # same data set for cell labels
-            main = "", # heat map title
-            notecol="black",      # change font color of cell labels to black
-            density.info="none",  # turns off density plot inside color legend
-            trace="none",         # turns off trace lines inside the heat map
-            margins = c(2,22),     # widens margins around plot
-            col=my_palette,       # use on color palette defined earlier
-            #breaks=col_breaks,    # enable color transition at specified limits
-            ColSideColors = as.character(gl),
-            dendrogram="row",     # only draw a row dendrogram
-            lhei=c(1,4), lwid=c(1,4),
-            labCol = "",
-            hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete"),
-            Colv="NA"            # turn off column clustering
-  )
-  par(lend = 1)           # square line ends for the color legend
-  legend("topright",      # location of the legend on the heatmap plot
-         inset=c(.1,-0), # adjust placement upward
-         legend = levels(map$Lifestyle), # category labels
-         col = levels(gl),  # color key
-         lty= 1,            # line style
-         lwd = 10,          # line width
-         cex = 0.75,
-         xpd=TRUE  # allow drawing outside
-  )
-  dev.off()
-}
-
-# Final combo heatmap
-# with more taxa
-Grp.Pvals = p.adjust(gpb)
-Wld.Pvals = p.adjust(wpb)
-res = data.frame(Grp.Pvals, Grp.Corrs, Wld.Pvals,row.names=rownames(otu.t))
-res = res[order(res$Grp.Corrs),]
-selection = res$Grp.Pvals < 0.05 & res$Wld.Pvals < 0.01 & abs(res$Grp.Corrs) > 0.45
-sum(selection)
-res = res[selection,]
-
-mat = otu.t[rownames(res),glpos]
-# Truncate names to last 2 informative levels
-split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
-rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
-
-levels(gl)= lscolors 
-png(paste0("results/BiClust_dense.png"),  # create PNG for the heat map        
-    width = 8*300,                        # 8 x 300 pixels
-    height = 6*300,
-    res = 300,                              # 300 pixels per inch
-    pointsize = 9)                          # smaller font size
-heatmap.2(mat,
-          #cellnote = mat,  # same data set for cell labels
-          main = "", # heat map title
-          notecol="black",      # change font color of cell labels to black
-          density.info="none",  # turns off density plot inside color legend
-          trace="none",         # turns off trace lines inside the heat map
-          margins = c(2,22),     # widens margins around plot
-          col=my_palette,       # use on color palette defined earlier
-          #breaks=col_breaks,    # enable color transition at specified limits
-          ColSideColors = as.character(gl),
-          #dendrogram="row",     # only draw a row dendrogram
-          lhei=c(1,4.7), lwid=c(1,5),
-          labCol = "",
-          hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete")
-          #Colv="NA"            # turn off column clustering
-)
-par(lend = 1)           # square line ends for the color legend
-legend("topright",      # location of the legend on the heatmap plot
-       inset=c(.1,-0), # adjust placement upward
-       legend = levels(map$Lifestyle), # category labels
-       col = levels(gl),  # color key
-       lty= 1,            # line style
-       lwd = 10,          # line width
-       cex = 0.65,
-       xpd=TRUE  # allow drawing outside
-)
-dev.off()
-
-Grp.Pvals = p.adjust(gpb)
-Wld.Pvals = p.adjust(wpb)
-res = data.frame(Grp.Pvals, Grp.Corrs, Wld.Pvals,row.names=rownames(otu.t))
-res = res[order(res$Grp.Corrs),]
-selection = res$Grp.Pvals < 0.05 & res$Wld.Pvals < 0.001 & abs(res$Grp.Corrs) > 0.8
-sum(selection)
-res = res[selection,]
-
-mat = otu.t[rownames(res),glpos,drop=F]
-# Truncate names to last 2 informative levels
-split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
-rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
-
-levels(gl)= lscolors 
-png(paste0("results/BiClust_sparse.png"),  # create PNG for the heat map        
-    width = 8*300,                        # 8 x 300 pixels
-    height = 6*300,
-    res = 300,                              # 300 pixels per inch
-    pointsize = 9)                          # smaller font size
-heatmap.2(mat,
-          #cellnote = mat,  # same data set for cell labels
-          main = "", # heat map title
-          notecol="black",      # change font color of cell labels to black
-          density.info="none",  # turns off density plot inside color legend
-          trace="none",         # turns off trace lines inside the heat map
-          margins = c(2,22),     # widens margins around plot
-          col=my_palette,       # use on color palette defined earlier
-          #breaks=col_breaks,    # enable color transition at specified limits
-          ColSideColors = as.character(gl),
-          #dendrogram="row",     # only draw a row dendrogram
-          lhei=c(1,4.7), lwid=c(1,5),
-          labCol = "",
-          hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete")
-          #Colv="NA"            # turn off column clustering
-)
-par(lend = 1)           # square line ends for the color legend
-legend("topright",      # location of the legend on the heatmap plot
-       inset=c(.1,-0), # adjust placement upward
-       legend = levels(map$Lifestyle), # category labels
-       col = levels(gl),  # color key
-       lty= 1,            # line style
-       lwd = 10,          # line width
-       cex = 0.65,
-       xpd=TRUE  # allow drawing outside
-)
-dev.off()
