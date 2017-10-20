@@ -31,6 +31,14 @@ Note:
 There's a tree of the same name available for use with UniFrac etc (you may have to use `sed` to strip the reference names after the space and `sed` again to replace the underscore with a space to get QIIME to be happy matching the tree tips to the reference names in your table)
 
 
+GreenGenes:
+Align to 16S markerGMG version "gg97", making a blast alignment file:
+burst12_old -r /scratch/gabe/databases/gg97.edx -a /scratch/gabe/databases/gg97.acx -b /scratch/gabe/databases/gg97.tax -q douc_stomach_vs_feces_combined_seqs.fna -o douc_stomach_vs_feces_aligns_gg97.b6 -n -m CAPITALIST -bs -i 0.935 -f -sa
+
+Convert the blast alignment file to an otu and taxa table in QIIME legacy format: 
+embalmulate douc_stomach_vs_feces_aligns_gg97.b6 douc_stomach_vs_feces_otutable_gg97.txt douc_stomach_vs_feces_taxatable_gg97.txt GGtrim
+
+
 Singapore Zoo Douc Stomach Contents Only:
 Step 1: shi7 to make a combined fasta 
 shi7.py -i /panfs/roc/groups/8/knightsd/clayt092/projects/douc_belly_bugs/fastq_files/stomach -o shi7_output --adaptor Nextera --strip_underscore T --allow_outies F --threads 4

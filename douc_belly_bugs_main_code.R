@@ -121,9 +121,9 @@ plot(rowSums(otu.r > 0) ~ map.f$Bodysite, xlab="Body Site",ylab="Number of OTUs"
 ## old alpha ##
 library(ggsignif)
 otu.ad = data.frame(Div=div.shannon, Body_site=map.f$Bodysite)
-grps = levels(map$Bodysite)
+grps = levels(map.f$Bodysite)
 lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
-pdf(paste0("results/AlphaDiv_bodysite",dix,".pdf"),width=6,height=5.5)
+pdf(paste0("results/filtered_1000/AlphaDiv_bodysite",dix,".pdf"),width=6,height=5.5)
 plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) +xlab("Body Site") + geom_violin(alpha=0.3) + 
        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
        geom_signif(comparisons = list(grps[c(1,3)]), test='t.test', map_signif_level = T, y_position = 4.4) +
@@ -141,6 +141,7 @@ plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) + xlab("Bo
        geom_jitter(aes(color=Body_site),position=position_jitter(0.2),size=2)  )
 dev.off()
 
+
 #### Differential taxa testing ####
 library("gplots")
 library("RColorBrewer")
@@ -151,7 +152,6 @@ library(reshape2)
 
 bT = c(2,4,6,7)  # Levels to consider for the bugs
 lscolors = c("red","green","blue")
-L = 1
 for (L in 1:length(bT)) {
   # Massage the taxa names
   split = strsplit(rownames(taxa.f),";")  # Split by semicolon into levels
@@ -159,7 +159,6 @@ for (L in 1:length(bT)) {
   for (i in 1:7) taxaStrings = gsub("(;[A-z]__$)?(;NA$)?","",taxaStrings,perl=T)   # Clean tips
   otu.t = rowsum(taxa.f,taxaStrings) # Collapse table by name
   
- 
   # Filter out bugs that don't appear in enough samples
   select = rowSums(otu.t > 0) > min(table(map.f$Bodysite))/2 # reasonable general min
   otu.t = otu.t[select,]                                    # Apply drop mask
@@ -174,10 +173,9 @@ for (L in 1:length(bT)) {
   # Go through each taxon and test for significance w/group
   otu.t = as.matrix(otu.t)
   ntax = nrow(otu.t)
-  BS = map$Bodysite
+  BS = map.f$Bodysite
   Grp.Pvals=rep(1,ntax)
   Grp.Corrs=rep(0,ntax)
-  Wld.Pvals=rep(1,ntax)
   KW.Pvals=rep(1,ntax)
   for (m.ix in 1:ntax) {  # Loop through all the rows (taxa)
     try({ # Because some correlations may be inadmissable
@@ -217,7 +215,7 @@ for (L in 1:length(bT)) {
   otu.m$Taxa = factor(otu.m$Taxa,levels=byAbundance,ordered=T) # add Taxa column
   
   ## Plot according to Bodysite, sorted by abundance
-  pdf(paste0("results/filtered_1000/TaxaSummary_L",bT[L],".pdf"),width = 8,height=7) # Make room for legend
+  pdf(paste0("results/filtered_1000/TaxaSummary_filtered1000_L",bT[L],".pdf"),width = 8,height=7) # Make room for legend
   plot(ggplot(otu.m, aes(x = Bodysite, y = RelativeAbundance, fill = Taxa)) +
          geom_bar(stat ="identity", position="fill") + labs(x="Bodysite",y="Root Relative Abundance") +
          guides(fill=guide_legend(ncol=1)) +
@@ -251,12 +249,13 @@ for (L in 1:length(bT)) {
   # Display all significant with p < 0.05
   num_sig = sum(selection, na.rm = T) # Count how many are significant
   res = res[selection,]
+  
   # Truncate names to last 2 informative levels
   split = strsplit(rownames(res),";")        # Split by semicolon into levels
   res$short = sapply(split,function(x) paste(tail(x,2),collapse=";"))
   
-  pdf(paste0("results/filtered_1000/TaxaSwarms_L",bT[L],".pdf"),width = 6.5,height=6.5)
-  sink(paste0("results/filtered_1000/Taxa_Significance_L",bT[L],".txt"))                  # Get ready to write the significant ones
+  pdf(paste0("results/filtered_1000/TaxaSwarms_filtered1000_L",bT[L],".pdf"),width = 6.5,height=6.5)
+  sink(paste0("results/filtered_1000/Taxa_Significance_filtered1000_L",bT[L],".txt"))   # Get ready to write the significant ones
   cat("Taxon\tPolyserial_Q\tPolyserial_Cor\tBodySite_Q\n")  # Print header
   if (num_sig) for (i in 1:num_sig) {
     taxon = rownames(res)[i]
@@ -269,11 +268,11 @@ for (L in 1:length(bT)) {
   sink(NULL)
   dev.off()
   
-  ## Heatmap
+  ## Heatmap ##
   # Need to have created the clr taxa table as a matrix
   my_palette <- colorRampPalette(c("blue", "black", "yellow"))(n = 299) # Sebastian Raschka
   gl = map.f$Bodysite
-  glpos = c(grep("Rumen",gl),grep("Stomach",gl),grep("Foregut",gl))
+  glpos = c(grep("Rumen",gl),grep("Foregut",gl),grep("Stomach",gl))
   gl = gl[glpos]
   mat = otu.t[rownames(res),glpos]
   
@@ -282,7 +281,7 @@ for (L in 1:length(bT)) {
   rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
   
   levels(gl)= c("red","green","blue")# lscolors 
-  png(paste0("results/filtered_1000/Taxa_heatmap_L",bT[L],".png"),  # create PNG for the heat map        
+  png(paste0("results/filtered_1000/Taxa_heatmap_filtered1000_L",bT[L],".png"),  # create PNG for the heat map        
       width = 8*300,                        # 8 x 300 pixels
       height = 6*300,
       res = 300,                              # 300 pixels per inch
@@ -316,105 +315,101 @@ for (L in 1:length(bT)) {
   dev.off()
 }
 
-
 #### PICRUST ####
 library(polycor)
 library(robCompositions)
 library(beeswarm)
 
-# Read in the closed ref table (feed to PICRUSt's normalize)
-otu.cr = read.delim('data/norm_copynum.txt',row=1,skip=1,as.is=T) # get this from picrust stage 1
-otu.cr = otu.cr[,c(rownames(map))]  # sync the sample names for the OTU table
-sum(otu.cr)
-otu.cr = otu.cr[rowMeans(otu.cr) >= 0.01,]
-sum(otu.cr)
-otu.raw97 = read.delim('data/combined_puregg97.otu',row=1)
-otu.raw97 = otu.raw97[,c(rownames(map))]
-pdf("results/ReadDepth_closed.pdf",width=6,height=5.5)
-plot(colSums(otu.raw97) ~ map$Lifestyle,xlab="Lifestyle",ylab="Read depth (closed)",
-     col=lscolors,lwd=2)
-dev.off()
-
-# Re-normalize PICRUSt stage 1 output with the centered log-ratio, feed to predict/summarize
-#table(sort(as.matrix(otu.cr))[0:1000000])
-#otu.cr.n = impRZilr(t(otu.cr),method='lm',dl=rep(0.1,nrow(otu.cr)),verbose = T)$x
-otu.cr.n = t(otu.cr)
-otu.cr.n[otu.cr.n < 0.08] = 0.08 # call 0's the "detection limit"
-otu.cr.n = t(cenLR(otu.cr.n)$x.clr)
-colnames(otu.cr.n) = colnames(otu.cr)
-
-sink("results/otu_reprocessed.txt"); cat("#OTU ID\t");
-write.table(otu.cr.n,file="results/otu_reprocessed.txt",quote=F,sep="\t",append = T);
-sink(NULL)
-
 # Read in the PICRUSt L3 summarized pathways (stage 3 output)
-picrust = read.delim('data/PredictedL3.txt', #'EMPV4_Doucs_R1only_NO_CHLOROPLASTS_ko_metagenome_at_level3.txt', 
+picrust = read.delim('data/gg97/convergent_evolution_stomach_meta-analysis_otutable_humans_macaques_doucs_embl_datasets_no_sheep_gg97_predictions_categorized_L3.txt',
                      skip=1, row.names = 1) #Grab picrust table, skipping bad first row
-picrust = as.matrix(picrust[,rownames(map)]) # sync and drop extra
+picrust = as.matrix(picrust[,rownames(map.f)]) # sync and drop extra
 
-nsti = read.delim('data/nsti_orig.picrustp',row=1)
-nsti = nsti[rownames(map),]
-pdf("results/NSTI.pdf",width=6,height=5.5)
-plot(nsti$Value ~ map$Lifestyle,ylab="NSTI index",xlab="Lifestyle",col=lscolors,lwd=2)
-dev.off()
+# Convert to relative abundance - CLR
+# picrust = t(picrust); eps = 0.2
+# picrust = picrust*(1 - rowSums(picrust==0)*eps/rowSums(picrust))
+# picrust[picrust==0]=eps
+# picrust = sweep(picrust,1,rowSums(picrust),'/');
+# ls = log(picrust)
+# picrust = t(ls - rowMeans(ls))
+
+# CLR with simple substitutions of zeros
+#picrust[picrust==0]=0.5
+#picrust = sweep(picrust,2,colSums(picrust),'/')
+#picrust.clr = cenLR(t(picrust))$x.clr
+#picrust = t(picrust.clr)
+
+# Just relative abundance (no CLR)
+picrust = sweep(picrust,2,colSums(picrust),'/')
+picrust = sweep(sqrt(picrust),2,colSums(sqrt(picrust)),'/')
 
 # Go through each picrust pathway and test for significance w/group
-CW = map$CaptiveWild %in% c("Captive","Wild") # For selecting only captive and wild
-Grp.Pvals = rep(1,nrow(picrust)) # Initialize p values for groupwise sig. tests
-Grp.Corrs = rep(0,nrow(picrust)) # Initialize correlation chamber (groupwise)
-Wld.Pvals = rep(1,nrow(picrust)) # Initialize p values for wild vs captive tests
-for (m.ix in 1:nrow(picrust)) {  # Loop through all the rows (picrust pathways)
-  try({
-    ps = polyserial(picrust[m.ix,],map$PA,ML=T,std.err = T)
-    if (is.na(ps$rho)) next
-    Grp.Corrs[m.ix] = ps$rho
-    Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) 
+npaths = nrow(picrust)
+BS = map.f$Bodysite
+Grp.Pvals=rep(1,npaths)
+Grp.Corrs=rep(0,npaths)
+KW.Pvals=rep(1,npaths)
+for (m.ix in 1:npaths) {  # Loop through all the rows (taxa)
+  try({ # Because some correlations may be inadmissable
+    ps = polyserial(picrust[m.ix,],map.f$Bodysite,ML=T,std.err = T)
+    if (is.na(pchisq(ps$chisq, ps$df))) next # Invalid correlation
+    Grp.Corrs[m.ix] = ps$rho             # Find intensity of correlation
+    Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) # And p-value on this
   },silent=T)
-  Wld.Pvals[m.ix] = wilcox.test(picrust[m.ix,CW] ~ map$CaptiveWild[CW])$p.value
+  KW.Pvals[m.ix] = kruskal.test(picrust[m.ix,] ~ map.f$Bodysite)$p.val
 }
 
 # Adjust for multiple tests
 Grp.Pvals = p.adjust(Grp.Pvals)
-Wld.Pvals = p.adjust(Wld.Pvals)
+KW.Pvals = p.adjust(KW.Pvals)
+res = data.frame(KW.Pvals, Grp.Pvals, Grp.Corrs,row.names=rownames(picrust))
+res = res[order(res$KW.Pvals),]
 
-# make and sort a data frame with these columns
-df = data.frame(Grp.Pvals, Grp.Corrs, Wld.Pvals, row.names = rownames(picrust))
-select = abs(df$Grp.Corrs) > 0.3 & df$Grp.Pvals < 0.05 & df$Wld.Pvals < 0.05
-df = df[select,]
-df = df[order(df$Grp.Corrs),]
+# Add bivariate filter
+sig = 0.05
+selection = res$KW.Pvals < sig
 
 # Display all significant with p < 0.05
-num_sig = sum(select)                      # Count how many are significant
-C_ix = map$CaptiveWild=="Captive"          # Stores "true" if monkey is captive, else "false"
-W_ix = map$CaptiveWild=="Wild"             # As above. Use these to select just wild/captive monkeys
-pdf(file = "results/PiSwarms.pdf",width = 6.5, height = 6.5)
-sink(file = "results/PICRUSt_Significance.txt")    # Store output to a text file
-cat("Pathway\tPolyserial_Q\tPolyserial_Cor\tCaptiveVsWild_Q\tTrendInCaptivity\n")  # The header line in the file
+num_sig = sum(selection, na.rm = T) # Count how many are significant
+res = res[selection,]
+
+pdf("results/filtered_1000/PicrustSwarms_filtered1000.pdf",width = 6.5,height=6.5)
+sink("results/filtered_1000/Picrust_Significance_filtered1000.txt")   # Get ready to write the significant ones
+cat("Taxon\tPolyserial_Q\tPolyserial_Cor\tBodySite_Q\tWhichCloser\tCloseP\n")  # Print header
+fs = map.f$Bodysite %in% c("Foregut","Stomach")
+fr = map.f$Bodysite %in% c("Foregut","Rumen")
+overall = numeric(num_sig)
+
 if (num_sig) for (i in 1:num_sig) {
-  cur = rownames(df)[i]
-  upInCaptive = mean(picrust[cur,C_ix]) > mean(picrust[cur,W_ix]) # compare avgs
-  cat(cur,'\t',df$Grp.Pvals[i],'\t',-df$Grp.Corrs[i],'\t',df$Wld.Pvals[i],'\t',
-      ifelse(upInCaptive,"UP","DOWN"),'\n',sep='')
-  beeswarm(picrust[cur,] ~ map$PA, xlab="Lifestyle",ylab="CLR Relative Abundance",main=cur,
-           col=alpha(lscolors,0.7),cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
-  bxplot(picrust[cur,] ~ map$PA, add = TRUE)
+  pathway = rownames(res)[i]
+  d2s = wilcox.test(picrust[pathway,fs]~map.f$Bodysite[fs])$p.val
+  d2r = wilcox.test(picrust[pathway,fr]~map.f$Bodysite[fr])$p.val
+  which.closer = ifelse(d2s > d2r,"Stomach","Rumen")
+  overall[i] = ifelse(d2s>d2r,d2s,d2r)
+  cat(pathway,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$KW.Pvals[i],'\t',which.closer,'\t',overall[i],'\n',sep='')
+  beeswarm(picrust[pathway,] ~ map.f$Bodysite, xlab="Body Site",ylab="Pathway Abundance",main=pathway,
+           col=alpha(lscolors,0.7),
+           cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
+  bxplot(picrust[pathway,] ~ map.f$Bodysite, add = TRUE)
 }
-sink(NULL)                                 # Close the output file
+sink(NULL)
 dev.off()
+mean(overall,na.rm = T)
+
 
 # PICRUSt heatmap too, why not
 library(gplots)
 my_palette <- colorRampPalette(c("blue", "black", "yellow"))(n = 299) # Sebastian Raschka
-gl = map$Lifestyle
-glpos = c(grep("Captive",gl),grep("Semi-captive",gl),grep("Semi-wild",gl),grep("Wild",gl))
+gl = map.f$Bodysite
+glpos = c(grep("Rumen",gl),grep("Foregut",gl),grep("Stomach",gl))
 gl = gl[glpos]
 mat = picrust[rownames(df[abs(df$Grp.Corrs) > 0.75,]),glpos]
 mat = sweep(mat,1,rowSums(abs(mat)),'/')                      # Normalize to relative abundance
 mat = sweep(mat,1,max(apply(mat,1,max),apply(mat,1,min)),'/') # Constrain extrema to [-1, 1]
 
-levels(gl)= lscolors #c("red","orange","yellow","green")
+levels(gl)= lscolors #c("red","orange","yellow")
 
-png("results/PiMap.png",  # create PNG for the heat map        
+png("results/filtered_1000/PiMap.png",  # create PNG for the heat map        
     width = 8*300,                        # 5 x 300 pixels
     height = 6*300,
     res = 300,                              # 300 pixels per inch

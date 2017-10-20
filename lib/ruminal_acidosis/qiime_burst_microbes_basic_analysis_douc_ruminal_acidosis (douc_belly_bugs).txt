@@ -1,0 +1,35 @@
+Comparisons between datasets:
+
+Rumen only:
+I. Making OTU biom table:
+1. biom convert -i douc_ruminal_acidosis_rumen_only_meta-analysis_QIIMEcompatibleOTUtable.txt -o douc_ruminal_acidosis_rumen_only_meta-analysis_QIIMEcompatibleOTUtable.biom --table-type "otu table"   
+
+2. biom summarize-table -i douc_ruminal_acidosis_rumen_only_meta-analysis_QIIMEcompatibleOTUtable.biom -o otu_summary_douc_ruminal_acidosis_rumen_only_meta-analysis_QIIMEcompatibleOTUtable.txt
+
+
+II. Alpha Diversity:
+1. This following command is needed, as the alpha_params.txt file needs to be created manually: echo "alpha_diversity:metrics shannon,PD_whole_tree,chao1,observed_species" > alpha_params.txt
+
+alpha_rarefaction.py -i douc_ruminal_acidosis_rumen_only_meta-analysis_QIIMEcompatibleOTUtable.biom -m douc_ruminal_acidosis_rumen_only_meta-analysis_merged_mapping.txt -o wf_arare_burst_douc_ruminal_acidosis_rumen_only_meta-analysis/ -p alpha_params.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre
+
+
+III. Beta Diversity:
+beta_diversity_through_plots.py -i douc_ruminal_acidosis_rumen_only_meta-analysis_QIIMEcompatibleOTUtable.biom -m douc_ruminal_acidosis_rumen_only_meta-analysis_merged_mapping.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre -e 50 -o wf_bdiv_burst_douc_ruminal_acidosis_rumen_only_meta-analysis/
+
+
+
+Rumen vs Feces:
+I. Making OTU biom table:
+1. biom convert -i douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_QIIMEcompatibleOTUtable.txt -o douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_QIIMEcompatibleOTUtable.biom --table-type "otu table"   
+
+2. biom summarize-table -i douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_QIIMEcompatibleOTUtable.biom -o otu_summary_douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_QIIMEcompatibleOTUtable.txt
+
+
+II. Alpha Diversity:
+1. This following command is needed, as the alpha_params.txt file needs to be created manually: echo "alpha_diversity:metrics shannon,PD_whole_tree,chao1,observed_species" > alpha_params.txt
+
+alpha_rarefaction.py -i douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_QIIMEcompatibleOTUtable.biom -m douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_merged_mapping.txt -o wf_arare_burst_douc_ruminal_acidosis_rumen_vs_feces_meta-analysis/ -p alpha_params.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre
+
+
+III. Beta Diversity:
+beta_diversity_through_plots.py -i douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_QIIMEcompatibleOTUtable.biom -m douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_merged_mapping.txt -t /home/knightsd/algh0022/sop/PROK_170704.tre -e 225 -o wf_bdiv_burst_douc_ruminal_acidosis_rumen_vs_feces_meta-analysis/

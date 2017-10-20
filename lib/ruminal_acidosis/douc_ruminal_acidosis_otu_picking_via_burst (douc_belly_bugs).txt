@@ -1,0 +1,39 @@
+OTU Picking via Gabe:New 16S picking workflow with markerGMG, embalmer version "emb12", and embalmulate:
+
+Step 0: Get on msi with the isub below
+isub -n nodes=1:ppn=16 -m 64GB -w 12:00:00
+module load python
+
+Rumen only:
+Step 1: Combine multiple combined_seqs.fna files:
+cat *.fna *.fa > douc_ruminal_acidosis_rumen_only_meta-analysis.fasta
+
+Step 2: Merge multiple mapfiles
+merge_mapping_files.py -m EMPV4_singapore_zoo_douc_stomach_contents_mapfile_082417.txt,Shucong_rumen_only_mapfile.txt -o douc_ruminal_acidosis_rumen_only_meta-analysis_merged_mapping.txt -n 'Data not collected'
+
+Step 3: Align to 16S markerGMG version "PROK_170704", making a blast alignment file
+burst12_old -r /home/knightsd/algh0022/sop/PROK_170704.edx -a /home/knightsd/algh0022/sop/PROK_170704.acx -b /home/knightsd/algh0022/sop/PROK_170704.tax -q douc_ruminal_acidosis_rumen_only_meta-analysis.fasta -o douc_ruminal_acidosis_rumen_only_meta-analysis_aligns.b6 -fr -n -m CAPITALIST -bs -i 0.935 -f -sa
+
+Step 4: Convert the blast alignment file to an otu and taxa table in QIIME legacy format 
+embalmulate douc_ruminal_acidosis_rumen_only_meta-analysis_aligns.b6 douc_ruminal_acidosis_rumen_only_meta-analysis_otutable.txt douc_ruminal_acidosis_rumen_only_meta-analysis_taxatable.txt GGtrim
+
+Step 5: Make OTU table compatible with QIIME tree (it substitutes "s" the underscore "/_" with a space "/ " globally "g" in the original table and outputs (">") the converted table)
+sed 's/_/ /g' douc_ruminal_acidosis_rumen_only_meta-analysis_otutable.txt > douc_ruminal_acidosis_rumen_only_meta-analysis_QIIMEcompatibleOTUtable.txt
+
+
+
+Rumen vs. Feces:
+Step 1: Combine multiple combined_seqs.fna files:
+cat *.fna *.fa > douc_ruminal_acidosis_rumen_vs_feces_meta-analysis.fasta
+
+Step 2: Merge multiple mapfiles
+merge_mapping_files.py -m douc_stomach_vs_feces_matching_mapfile_082417.txt,Shucong_rumen_and_feces_mapfile.txt -o douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_merged_mapping.txt -n 'Data not collected'
+
+Step 3: Align to 16S markerGMG version "PROK_170704", making a blast alignment file
+burst12_old -r /home/knightsd/algh0022/sop/PROK_170704.edx -a /home/knightsd/algh0022/sop/PROK_170704.acx -b /home/knightsd/algh0022/sop/PROK_170704.tax -q douc_ruminal_acidosis_rumen_vs_feces_meta-analysis.fasta -o douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_aligns.b6 -fr -n -m CAPITALIST -bs -i 0.935 -f -sa
+
+Step 4: Convert the blast alignment file to an otu and taxa table in QIIME legacy format 
+embalmulate douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_aligns.b6 douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_otutable.txt douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_taxatable.txt GGtrim
+
+Step 5: Make OTU table compatible with QIIME tree (it substitutes "s" the underscore "/_" with a space "/ " globally "g" in the original table and outputs (">") the converted table)
+sed 's/_/ /g' douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_otutable.txt > douc_ruminal_acidosis_rumen_vs_feces_meta-analysis_QIIMEcompatibleOTUtable.txt

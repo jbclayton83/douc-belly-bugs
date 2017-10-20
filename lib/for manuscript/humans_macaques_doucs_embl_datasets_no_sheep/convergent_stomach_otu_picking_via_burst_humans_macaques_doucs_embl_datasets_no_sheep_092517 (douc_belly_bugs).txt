@@ -15,3 +15,11 @@ embalmulate convergent_evolution_stomach_meta-analysis_aligns_humans_macaques_do
 
 Step 4: Make OTU table compatible with QIIME tree (it substitutes "s" the underscore "/_" with a space "/ " globally "g" in the original table and outputs (">") the converted table)
 sed 's/_/ /g' convergent_evolution_stomach_meta-analysis_otutable_humans_macaques_doucs_embl_datasets_no_sheep.txt > convergent_evolution_stomach_meta-analysis_QIIMEcompatibleOTUtable_humans_macaques_doucs_embl_datasets_no_sheep.txt
+
+
+GreenGenes:
+Align to 16S markerGMG version "gg97", making a blast alignment file:
+burst12_old -r /scratch/gabe/databases/gg97.edx -a /scratch/gabe/databases/gg97.acx -b /scratch/gabe/databases/gg97.tax -q convergent_evolution_stomach_meta-analysis_combined_humans_macaques_doucs_embl_datasets_no_sheep.fasta -o convergent_evolution_stomach_meta-analysis_aligns_humans_macaques_doucs_embl_datasets_no_sheep_gg97.b6 -fr -n -m CAPITALIST -bs -i 0.97 -f -sa
+
+Convert the blast alignment file to an otu and taxa table in QIIME legacy format: 
+embalmulate convergent_evolution_stomach_meta-analysis_aligns_humans_macaques_doucs_embl_datasets_no_sheep_gg97.b6 convergent_evolution_stomach_meta-analysis_otutable_humans_macaques_doucs_embl_datasets_no_sheep_gg97.txt convergent_evolution_stomach_meta-analysis_taxatable_humans_macaques_doucs_embl_datasets_no_sheep_gg97.txt GGtrim
