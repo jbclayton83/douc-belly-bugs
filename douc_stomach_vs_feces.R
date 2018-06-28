@@ -50,7 +50,22 @@ adonis(pcoa.w ~ map$Bodysite)       # Do stats for clustering (weighted)
 adonis(bray ~ map$Bodysite)         # Do stats for bray-curtis too, why not
 
 
-#### Alpha diversity violin plots ####
+#### PCoA plots - Dead or Alive #### (requires map and otu table loaded) 
+source('lib/pcoa_helper.R') # This gives us our nice pcoa functions
+library(phyloseq)
+tree = read_tree_greengenes('data/PROK_170704.tre')
+otu.s = as.matrix(otu)  # Rip of the taxonomy column, as it is not needed 
+bray = vegdist(t(otu.s))             # Get some bray curtis distances
+pdf("results/douc_stomach_vs_feces/bray_alive_or_deceased_stomachvsfeces.pdf",width=6,height=4.75); plot_pcoa(bray,map,category='Alive_or_Deceased_as_of_091814');
+pdf("results/douc_stomach_vs_feces/uuf_alive_or_deceased_stomachvsfeces.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.s,map,tree,category='Alive_or_Deceased_as_of_091814',weight=F); 
+pdf("results/douc_stomach_vs_feces/wuf_alive_or_deceased_stomachvsfeces.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.s,map,tree,category='Alive_or_Deceased_as_of_091814',weight=T); 
+graphics.off()
+adonis(pcoa.u ~ map$Alive_or_Deceased_as_of_091814)       # Do stats for clustering (unweighted)
+adonis(pcoa.w ~ map$Alive_or_Deceased_as_of_091814)       # Do stats for clustering (weighted)
+adonis(bray ~ map$Alive_or_Deceased_as_of_091814)         # Do stats for bray-curtis too, why not
+
+
+#### Alpha diversity violin plots - Bodysite ####
 library(vegan)
 (mindepth = min(colSums(otu))) # for row, -grep("Chloroplast",otu$taxonomy)?
 otu.r = rrarefy(t(otu),mindepth) # Rarefy to the minimum sample depth
@@ -60,7 +75,7 @@ plot(div.isimp~map$Bodysite, xlab="Body Site",ylab="Shannon Diversity")
 plot(div.shannon~map$Bodysite, xlab="Body Site",ylab="Inverse Simpson Diversity")
 plot(rowSums(otu.r > 0) ~ map$Bodysite, xlab="Body Site",ylab="Number of OTUs")
 
-## old alpha ##
+## old alpha -Bodysite ##
 library(ggsignif)
 otu.ad = data.frame(Div=div.shannon, Body_site=map$Bodysite)
 grps = levels(map$Bodysite)
@@ -77,6 +92,36 @@ pdf(paste0("results/douc_stomach_vs_feces/numOTU_bodysite_stomachvsfeces.pdf"),w
 plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) + xlab("Body Site") + geom_violin(alpha=0.3) + 
        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
        geom_jitter(aes(color=Body_site),position=position_jitter(0.2),size=2)  )
+dev.off()
+
+
+#### Alpha diversity violin plots - Alive or Deceased####
+library(vegan)
+(mindepth = min(colSums(otu))) # for row, -grep("Chloroplast",otu$taxonomy)?
+otu.r = rrarefy(t(otu),mindepth) # Rarefy to the minimum sample depth
+div.shannon = diversity(otu.r,"shannon")
+div.isimp = diversity(otu.r,"invsimpson")
+plot(div.isimp~map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Shannon Diversity")
+plot(div.shannon~map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Inverse Simpson Diversity")
+plot(rowSums(otu.r > 0) ~ map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Number of OTUs")
+
+## old alpha - Alive or Dead ##
+library(ggsignif)
+otu.ad = data.frame(Div=div.shannon, Status=map$Alive_or_Deceased_as_of_091814)
+grps = levels(map$Alive_or_Deceased_as_of_091814)
+lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
+pdf(paste0("results/douc_stomach_vs_feces/AlphaDiv_alive_or_deceased_doucvsfeces.pdf"),width=6,height=5.5)
+plot(ggplot(otu.ad,aes(x=Status,y=Div,fill=Status)) + ylab(lab) +xlab("Alive or Dead") + geom_violin(alpha=0.3) + 
+       geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
+       geom_jitter(aes(color=Status),position=position_jitter(0.2),size=2)  )
+dev.off()
+otu.ad = data.frame(Div=rowSums(otu.r > 0), Status=map$Alive_or_Deceased_as_of_091814)
+grps = levels(map$Alive_or_Deceased_as_of_091814)
+lab = "Alpha Diversity (Number of OTUs)" 
+pdf(paste0("results/douc_stomach_vs_feces/numOTU_alive_or_deceased_stomachvsfeces.pdf"),width=6,height=5.5)
+plot(ggplot(otu.ad,aes(x=Status,y=Div,fill=Status)) + ylab(lab) + xlab("Alive or Dead") + geom_violin(alpha=0.3) + 
+       geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
+       geom_jitter(aes(color=Status),position=position_jitter(0.2),size=2)  )
 dev.off()
 
 
@@ -428,3 +473,123 @@ for (L in 1:length(bT)) {
   )
   dev.off()
 }
+
+
+#### PICRUST ####
+library(polycor)
+library(robCompositions)
+library(beeswarm)
+
+# Read in the PICRUSt L3 summarized pathways (stage 3 output)
+picrust = read.delim('data/gg97/douc_stomach_vs_feces_otutable_gg97_predictions_categorized_L3.txt',
+                     skip=1, row.names = 1) #Grab picrust table, skipping bad first row
+picrust = as.matrix(picrust[,rownames(map)]) # sync and drop extra
+
+# Convert to relative abundance - CLR
+picrust = t(picrust); eps = 0.2
+picrust = picrust*(1 - rowSums(picrust==0)*eps/rowSums(picrust))
+picrust[picrust==0]=eps
+picrust = sweep(picrust,1,rowSums(picrust),'/');
+ls = log(picrust)
+picrust = t(ls - rowMeans(ls))
+
+# CLR with simple substitutions of zeros
+#picrust[picrust==0]=0.5
+#picrust = sweep(picrust,2,colSums(picrust),'/')
+#picrust.clr = cenLR(t(picrust))$x.clr
+#picrust = t(picrust.clr)
+
+# Just relative abundance (no CLR)
+#picrust = sweep(picrust,2,colSums(picrust),'/')
+#picrust = sweep(sqrt(picrust),2,colSums(sqrt(picrust)),'/')
+
+# Go through each picrust pathway and test for significance w/group
+npaths = nrow(picrust)
+BS = map$Bodysite
+Grp.Pvals=rep(1,npaths)
+Grp.Corrs=rep(0,npaths)
+KW.Pvals=rep(1,npaths)
+for (m.ix in 1:npaths) {  # Loop through all the rows (taxa)
+  try({ # Because some correlations may be inadmissable
+    ps = polyserial(picrust[m.ix,],map$Bodysite,ML=T,std.err = T)
+    if (is.na(pchisq(ps$chisq, ps$df))) next # Invalid correlation
+    Grp.Corrs[m.ix] = ps$rho             # Find intensity of correlation
+    Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) # And p-value on this
+  },silent=T)
+  KW.Pvals[m.ix] = kruskal.test(picrust[m.ix,] ~ map$Bodysite)$p.val
+}
+
+# Adjust for multiple tests
+Grp.Pvals = p.adjust(Grp.Pvals, method = "fdr")
+KW.Pvals = p.adjust(KW.Pvals, method = "fdr")
+res = data.frame(KW.Pvals, Grp.Pvals, Grp.Corrs,row.names=rownames(picrust))
+res = res[order(res$KW.Pvals),]
+
+# Add bivariate filter
+sig = 0.05
+selection = res$KW.Pvals < sig
+
+# Display all significant with p < 0.05
+num_sig = sum(selection, na.rm = T) # Count how many are significant
+res = res[selection,]
+
+pdf("results/douc_stomach_vs_feces/PicrustSwarms.pdf",width = 6.5,height=6.5)
+sink("results/douc_stomach_vs_feces/Picrust_Significance.txt")   # Get ready to write the significant ones
+cat("Pathway\tPolyserial_Q\tPolyserial_Cor\tBodySite_Q\n")  # Print header
+
+if (num_sig) for (i in 1:num_sig) {
+  pathway = rownames(res)[i]
+  cat(pathway,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$KW.Pvals[i],'\n',sep='')
+  beeswarm(picrust[pathway,] ~ map$Bodysite, xlab="Body Site",ylab="Pathway Abundance",main=pathway,
+           col=alpha(lscolors,0.7),
+           cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
+  bxplot(picrust[pathway,] ~ map$Bodysite, add = TRUE)
+}
+sink(NULL)
+dev.off()
+
+# PICRUSt heatmap too, why not
+library(gplots)
+my_palette <- colorRampPalette(c("blue", "black", "yellow"))(n = 299) # Sebastian Raschka
+gl = map$Bodysite
+glpos = c(grep("Foregut",gl),grep("Hindgut",gl))
+gl = gl[glpos]
+mat = picrust[rownames(df[abs(df$Grp.Corrs) > 0.75,]),glpos]
+mat = sweep(mat,1,rowSums(abs(mat)),'/')                      # Normalize to relative abundance
+mat = sweep(mat,1,max(apply(mat,1,max),apply(mat,1,min)),'/') # Constrain extrema to [-1, 1]
+
+levels(gl)= lscolors #c("red","orange","yellow")
+
+png("results/douc_stomach_vs_feces/PiMap.png",  # create PNG for the heat map        
+    width = 8*300,                        # 5 x 300 pixels
+    height = 6*300,
+    res = 300,                              # 300 pixels per inch
+    pointsize = 11)                          # smaller font size
+heatmap.2(mat,
+          #cellnote = mat,  # same data set for cell labels
+          main = "", # heat map title
+          notecol="black",      # change font color of cell labels to black
+          density.info="none",  # turns off density plot inside color legend
+          trace="none",         # turns off trace lines inside the heat map
+          margins = c(2,22),     # widens margins around plot
+          col=my_palette,       # use on color palette defined earlier
+          #breaks=col_breaks,    # enable color transition at specified limits
+          ColSideColors = as.character(gl),
+          dendrogram="row",     # only draw a row dendrogram
+          lhei=c(1,4), lwid=c(1,4),
+          labCol = "",
+          hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete"),
+          Colv="NA"            # turn off column clustering
+)
+par(lend = 1)           # square line ends for the color legend
+legend("topright",      # location of the legend on the heatmap plot
+       inset=c(.1,-0), # adjust placement upward
+       legend = levels(map$Bodysite), # category labels
+       col = levels(gl),  # color key
+       lty= 1,            # line style
+       lwd = 10,          # line width
+       cex = 0.75,
+       xpd=TRUE  # allow drawing outside
+)
+dev.off()
+inst

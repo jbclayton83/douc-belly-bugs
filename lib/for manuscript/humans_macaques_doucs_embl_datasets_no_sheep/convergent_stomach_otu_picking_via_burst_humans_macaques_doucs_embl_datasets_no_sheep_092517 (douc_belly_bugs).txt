@@ -1,7 +1,7 @@
 OTU Picking via Gabe:New 16S picking workflow with markerGMG, embalmer version "emb12", and embalmulate:
 
 Step 0: Get on msi with the isub below
-isub -n nodes=1:ppn=16 -m 64GB -w 12:00:00
+isub -n nodes=1:ppn=16 -m 32GB -w 12:00:00
 module load python
 
 Step 1: Merge multiple mapfiles

@@ -108,7 +108,11 @@ adonis(pcoa.w ~ map.f$BodysiteSpecies)       # Do stats for clustering (weighted
 adonis(bray.f ~ map.f$BodysiteSpecies)       # Do stats for bray-curtis too, why not
 
 
-#### Alpha diversity violin plots ####
+#### Local Gradient Distance ####
+
+
+
+#### Alpha diversity violin plots - Filtered at 1000 ####
 library(vegan)
 (mindepth = min(colSums(otu.f))) # for row, -grep("Chloroplast",otu$taxonomy)?
 otu.r = rrarefy(t(otu.f),mindepth) # Rarefy to the minimum sample depth (1000)
@@ -118,7 +122,7 @@ plot(div.isimp~map.f$Bodysite, xlab="Body Site",ylab="Shannon Diversity")
 plot(div.shannon~map.f$Bodysite, xlab="Body Site",ylab="Inverse Simpson Diversity")
 plot(rowSums(otu.r > 0) ~ map.f$Bodysite, xlab="Body Site",ylab="Number of OTUs")
 
-## old alpha ##
+## old alpha - Filtered at 1000 ##
 library(ggsignif)
 otu.ad = data.frame(Div=div.shannon, Body_site=map.f$Bodysite)
 grps = levels(map.f$Bodysite)
@@ -142,7 +146,7 @@ plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) + xlab("Bo
 dev.off()
 
 
-#### Differential taxa testing ####
+#### Differential taxa testing - Filtered at 1000 ####
 library("gplots")
 library("RColorBrewer")
 library(robCompositions) # Composition magic
@@ -257,9 +261,18 @@ for (L in 1:length(bT)) {
   pdf(paste0("results/filtered_1000/TaxaSwarms_filtered1000_L",bT[L],".pdf"),width = 6.5,height=6.5)
   sink(paste0("results/filtered_1000/Taxa_Significance_filtered1000_L",bT[L],".txt"))   # Get ready to write the significant ones
   cat("Taxon\tPolyserial_Q\tPolyserial_Cor\tBodySite_Q\n")  # Print header
+  
+  fs = map.f$Bodysite %in% c("Foregut","Stomach")
+  fr = map.f$Bodysite %in% c("Foregut","Rumen")
+  overall = numeric(num_sig)
+  
   if (num_sig) for (i in 1:num_sig) {
     taxon = rownames(res)[i]
-    cat(res[taxon,]$short,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$KW.Pvals[i],'\t','\n',sep='')
+    d2s = wilcox.test(otu.t[taxon,fs]~map.f$Bodysite[fs])$p.val
+    d2r = wilcox.test(otu.t[taxon,fr]~map.f$Bodysite[fr])$p.val
+    which.closer = ifelse(d2s > d2r,"Stomach","Rumen")
+    overall[i] = ifelse(d2s>d2r,d2s,d2r)
+    cat(res[taxon,]$short,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$KW.Pvals[i],'\t',which.closer,'\t',overall[i],'\n',sep='')
     beeswarm(otu.t[taxon,] ~ map.f$Bodysite, xlab="Body Site",ylab="CLR Relative Abundance",main=res[taxon,]$short,
              col=alpha(lscolors,0.7),
              cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
@@ -267,6 +280,8 @@ for (L in 1:length(bT)) {
   }
   sink(NULL)
   dev.off()
+  mean(overall,na.rm = T)
+
   
   ## Heatmap ##
   # Need to have created the clr taxa table as a matrix
@@ -315,10 +330,28 @@ for (L in 1:length(bT)) {
   dev.off()
 }
 
-#### PICRUST ####
+
+#### PICRUST - Filtered at 1000 ####
 library(polycor)
 library(robCompositions)
 library(beeswarm)
+
+# Run CLR transformation on normalized otu table #
+#picrust = read.delim('data/gg97/convergent_evolution_stomach_meta-analysis_otutable_humans_macaques_doucs_embl_datasets_no_sheep_gg97_normalized.txt',
+                     # skip=1, row.names = 1) #Grab picrust table, skipping bad first row
+#picrust = as.matrix(picrust[,rownames(map.f)]) # sync and drop extra
+
+# Re-normalize PICRUSt stage 1 output with the centered log-ratio, feed to predict/summarize
+# picrust = picrust[rowMeans(picrust) >= 0.01,]
+
+# picrust[picrust<0.08]=0.08 # rather than picrust[picrust==0]=.5
+# picrust = sweep(picrust,2,colSums(picrust),'/')
+# picrust.clr = cenLR(t(picrust))$x.clr
+# picrust = t(picrust.clr)
+
+# sink('data/gg97/convergent_evolution_stomach_meta-analysis_otutable_humans_macaques_doucs_embl_datasets_no_sheep_gg97_normalized_clr.txt'); cat("#OTU ID\t");
+# write.table(picrust,file="data/gg97/convergent_evolution_stomach_meta-analysis_otutable_humans_macaques_doucs_embl_datasets_no_sheep_gg97_normalized_clr.txt",quote=F,sep="\t",append = T);
+# sink(NULL)
 
 # Read in the PICRUSt L3 summarized pathways (stage 3 output)
 picrust = read.delim('data/gg97/convergent_evolution_stomach_meta-analysis_otutable_humans_macaques_doucs_embl_datasets_no_sheep_gg97_predictions_categorized_L3.txt',
@@ -326,22 +359,22 @@ picrust = read.delim('data/gg97/convergent_evolution_stomach_meta-analysis_otuta
 picrust = as.matrix(picrust[,rownames(map.f)]) # sync and drop extra
 
 # Convert to relative abundance - CLR
-# picrust = t(picrust); eps = 0.2
-# picrust = picrust*(1 - rowSums(picrust==0)*eps/rowSums(picrust))
-# picrust[picrust==0]=eps
-# picrust = sweep(picrust,1,rowSums(picrust),'/');
-# ls = log(picrust)
-# picrust = t(ls - rowMeans(ls))
+picrust = t(picrust); eps = 0.2
+picrust = picrust*(1 - rowSums(picrust==0)*eps/rowSums(picrust))
+picrust[picrust==0]=eps
+picrust = sweep(picrust,1,rowSums(picrust),'/');
+ls = log(picrust)
+picrust = t(ls - rowMeans(ls))
 
-# CLR with simple substitutions of zeros
-#picrust[picrust==0]=0.5
-#picrust = sweep(picrust,2,colSums(picrust),'/')
-#picrust.clr = cenLR(t(picrust))$x.clr
-#picrust = t(picrust.clr)
-
-# Just relative abundance (no CLR)
-picrust = sweep(picrust,2,colSums(picrust),'/')
-picrust = sweep(sqrt(picrust),2,colSums(sqrt(picrust)),'/')
+# # CLR with simple substitutions of zeros
+# #picrust[picrust==0]=0.5
+# #picrust = sweep(picrust,2,colSums(picrust),'/')
+# picrust.clr = cenLR(t(picrust))$x.clr
+# picrust = t(picrust.clr)
+# 
+# # Just relative abundance (no CLR)
+# picrust = sweep(picrust,2,colSums(picrust),'/')
+# picrust = sweep(sqrt(picrust),2,colSums(sqrt(picrust)),'/')
 
 # Go through each picrust pathway and test for significance w/group
 npaths = nrow(picrust)
@@ -373,9 +406,9 @@ selection = res$KW.Pvals < sig
 num_sig = sum(selection, na.rm = T) # Count how many are significant
 res = res[selection,]
 
-pdf("results/filtered_1000/PicrustSwarms_filtered1000.pdf",width = 6.5,height=6.5)
-sink("results/filtered_1000/Picrust_Significance_filtered1000.txt")   # Get ready to write the significant ones
-cat("Taxon\tPolyserial_Q\tPolyserial_Cor\tBodySite_Q\tWhichCloser\tCloseP\n")  # Print header
+pdf("results/filtered_1000/PicrustSwarms_L3_filtered1000_clr.pdf",width = 6.5,height=6.5)
+sink("results/filtered_1000/Picrust_Significance_L3_filtered1000_clr.txt")   # Get ready to write the significant ones
+cat("Pathway\tPolyserial_Q\tPolyserial_Cor\tBodySite_Q\tWhichCloser\tCloseP\n")  # Print header
 fs = map.f$Bodysite %in% c("Foregut","Stomach")
 fr = map.f$Bodysite %in% c("Foregut","Rumen")
 overall = numeric(num_sig)
@@ -395,6 +428,7 @@ if (num_sig) for (i in 1:num_sig) {
 sink(NULL)
 dev.off()
 mean(overall,na.rm = T)
+
 
 
 # PICRUSt heatmap too, why not
