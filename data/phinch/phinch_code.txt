@@ -1,0 +1,26 @@
+PHINCH:
+
+PROK_170704:
+Microbes:
+biom convert -i douc_stomach_vs_feces_otutable_prok_170704.txt -o douc_stomach_vs_feces_otutable_prok_170704.biom --table-type="OTU table" --to-json
+
+biom add-metadata -i douc_stomach_vs_feces_otutable_prok_170704.biom -o douc_stomach_vs_feces_otutable_w_metadata_prok_170704.biom --sample-metadata-fp EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417_phinch.txt --observation-metadata-fp PROK_170704.tax --observation-header OTUID,taxonomy --sc-separated taxonomy
+
+biom convert -i douc_stomach_vs_feces_otutable_w_metadata_prok_170704.biom -o douc_stomach_vs_feces_otutable_w_metadata_prok_170704_json.biom --to-json
+
+
+Plants:
+biom convert -i douc_stomach_vs_feces_chloro_otutable_prok_170704.txt -o douc_stomach_vs_feces_chloro_otutable_prok_170704.biom --table-type="OTU table" --to-json
+
+biom add-metadata -i douc_stomach_vs_feces_chloro_otutable_prok_170704.biom -o douc_stomach_vs_feces_chloro_otutable_w_metadata_prok_170704.biom --sample-metadata-fp EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417_phinch.txt --observation-metadata-fp CHLORO.tax --observation-header OTUID,taxonomy --sc-separated taxonomy
+
+biom convert -i douc_stomach_vs_feces_chloro_otutable_w_metadata_prok_170704.biom -o douc_stomach_vs_feces_chloro_otutable_w_metadata_prok_170704_json.biom --to-json
+
+
+
+gg97:
+biom convert -i douc_stomach_vs_feces_otutable_gg97.txt -o douc_stomach_vs_feces_otutable_gg97.biom --table-type="OTU table" --to-json
+
+biom add-metadata -i douc_stomach_vs_feces_otutable_gg97.biom -o douc_stomach_vs_feces_otutable_gg97_w_metadata.biom --sample-metadata-fp EMPV4_singapore_zoo_douc_stomach_contents_and_feces_matching_mapfile_082417_phinch.txt --observation-metadata-fp gg97.tax --observation-header OTUID,taxonomy --sc-separated taxonomy
+
+biom convert -i douc_stomach_vs_feces_otutable_gg97_w_metadata.biom -o douc_stomach_vs_feces_otutable_gg97_w_metadata_json.biom --to-json
