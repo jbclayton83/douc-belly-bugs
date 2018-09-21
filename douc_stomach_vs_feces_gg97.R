@@ -80,7 +80,7 @@ library(ggsignif)
 otu.ad = data.frame(Div=div.shannon, Body_site=map$Bodysite)
 grps = levels(map$Bodysite)
 lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
-pdf(paste0("results/gg97_stomach_feces/AlphaDiv_bodysite_doucvsfeces_gg97",dix,".pdf"),width=6,height=5.5)
+pdf(paste0("results/gg97_stomach_feces/AlphaDiv_bodysite_doucvsfeces_gg97.pdf"),width=6,height=5.5)
 plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) +xlab("Body Site") + geom_violin(alpha=0.3) + 
        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
        geom_jitter(aes(color=Body_site),position=position_jitter(0.2),size=2)  )
@@ -126,8 +126,8 @@ dev.off()
 
 
 #### Differential taxa testing - by Bodysite ####
-library("gplots")
-library("RColorBrewer")
+library(gplots)
+library(RColorBrewer)
 library(robCompositions) # Composition magic
 library(polycor)
 library(beeswarm)
@@ -301,8 +301,8 @@ for (L in 1:length(bT)) {
 
 
 #### Differential taxa testing - by Subject ####
-library("gplots")
-library("RColorBrewer")
+library(gplots)
+library(RColorBrewer)
 library(robCompositions) # Composition magic
 library(polycor)
 library(beeswarm)
@@ -481,7 +481,7 @@ library(robCompositions)
 library(beeswarm)
 
 # Read in the PICRUSt L3 summarized pathways (stage 3 output)
-picrust = read.delim('data/gg97/douc_stomach_vs_feces_otutable_gg97_predictions_categorized_L3_gg97.txt',
+picrust = read.delim('data/gg97/douc_stomach_vs_feces_otutable_gg97_predictions_categorized_L3.txt',
                      skip=1, row.names = 1) #Grab picrust table, skipping bad first row
 picrust = as.matrix(picrust[,rownames(map)]) # sync and drop extra
 
@@ -592,4 +592,3 @@ legend("topright",      # location of the legend on the heatmap plot
        xpd=TRUE  # allow drawing outside
 )
 dev.off()
-inst
