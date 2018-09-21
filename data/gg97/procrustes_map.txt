@@ -1,0 +1,13 @@
+SampleID	AnimalID_name	Bodysite
+SZ.SC1	Labu	Foregut
+SZMB10	Labu	Hindgut
+SZ.SC2	Hanoi	Foregut
+SZMB7	Hanoi	Hindgut
+SZ.SC6	Trong	Foregut
+SZMB9	Trong	Hindgut
+SZ.SC7	Tuan	Foregut
+SZMB12	Tuan	Hindgut
+SZ.SC4	Penh	Foregut
+SZMB6	Penh	Hindgut
+SZ.SC5	Phnom	Foregut
+SZMB5	Phnom	Hindgut

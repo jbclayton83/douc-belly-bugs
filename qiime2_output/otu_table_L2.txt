@@ -1,0 +1,22 @@
+# Constructed from biom file
+#OTU ID	SZ.SC4	SZ.SC7	SZ.SC5	SZ.SC2	SZ.SC1	SZ.SC6	SZMB12	SZMB7	SZMB6	SZMB5	SZMB9	SZMB10
+k__Archaea;p__Euryarchaeota	5.0	95.0	18.0	94.0	577.0	3.0	2.0	546.0	337.0	1497.0	188.0	393.0
+k__Bacteria;p__	1.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0
+k__Bacteria;p__Actinobacteria	1470.0	209.0	734.0	226.0	7913.0	225.0	38.0	398.0	80.0	130.0	266.0	421.0
+k__Bacteria;p__Bacteroidetes	3989.0	7507.0	4579.0	17665.0	17795.0	4938.0	8561.0	7591.0	7563.0	5827.0	12072.0	13032.0
+k__Bacteria;p__Chlamydiae	0.0	0.0	0.0	0.0	0.0	0.0	9.0	50.0	0.0	0.0	0.0	0.0
+k__Bacteria;p__Chloroflexi	0.0	32.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0
+k__Bacteria;p__Cyanobacteria	267.0	83.0	124.0	111.0	1617.0	1.0	143.0	47.0	28.0	17.0	35.0	4.0
+k__Bacteria;p__Elusimicrobia	0.0	1.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	20.0
+k__Bacteria;p__Fibrobacteres	32.0	4.0	6.0	48.0	4.0	1.0	0.0	0.0	0.0	67.0	26.0	0.0
+k__Bacteria;p__Firmicutes	24849.0	42242.0	6657.0	35509.0	26926.0	6128.0	45168.0	63310.0	61380.0	65028.0	52527.0	50492.0
+k__Bacteria;p__Fusobacteria	1.0	2.0	1.0	7.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0
+k__Bacteria;p__Lentisphaerae	0.0	0.0	0.0	0.0	2.0	0.0	2.0	5.0	0.0	0.0	0.0	0.0
+k__Bacteria;p__Planctomycetes	0.0	0.0	0.0	2.0	2.0	0.0	0.0	0.0	0.0	20.0	0.0	0.0
+k__Bacteria;p__Proteobacteria	40753.0	12120.0	60148.0	13593.0	190.0	72688.0	539.0	235.0	355.0	237.0	226.0	71.0
+k__Bacteria;p__Spirochaetes	171.0	230.0	29.0	1563.0	3508.0	16.0	4799.0	576.0	1217.0	221.0	3825.0	0.0
+k__Bacteria;p__Synergistetes	0.0	1.0	0.0	3.0	23.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0
+k__Bacteria;p__Tenericutes	4.0	56.0	20.0	2.0	2.0	1.0	827.0	154.0	557.0	836.0	665.0	1690.0
+k__Bacteria;p__Verrucomicrobia	0.0	0.0	2.0	13.0	1.0	0.0	53.0	39.0	103.0	14.0	243.0	554.0
+k__Bacteria;p__WPS-2	0.0	2.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0	0.0
+k__Bacteria;p__[Thermi]	1.0	0.0	0.0	0.0	0.0	1.0	0.0	0.0	0.0	0.0	0.0	0.0
