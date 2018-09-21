@@ -6,20 +6,20 @@ library(vegan)
 library(ggplot2)
 
 # Read in beta diversity tables
-unw_A <- read.delim('../unweighted_unifrac_asp_post_ampOTUnorm.txt',
+unw_A <- read.delim('../data/gg97/beta_div_stomach/unifrac_douc_stomach_otutable_gg97.txt',
                     header=1, row.names = 1, check.names = F)
-unw_B <- read.delim('../unweighted_unifrac_stool_post_ampOTUnorm.txt',
+unw_B <- read.delim('../data/gg97/beta_div_feces/unifrac_douc_feces_otutable_gg97.txt',
                     header=1, row.names = 1, check.names = F)
 # Metadata needs three columns - 
 # 1. sample IDs (e.g. "P21_pre_stool")
 # 2. the unifying participant/unit ID (e.g."P21") 
 # 3. the binary metadata group, corresponding to the two distance input matrices (e.g. "pre" or "post")
-meta <- read.delim('../plotcrust_metadata_aspstool.txt',
+meta <- read.delim('../data/gg97/procrustes_map.txt',
                    header=1, row.names=1, check.names = F)
 
-thing <- 'patient'  # The meta header for the participant ID column
-group <- 'group'  # The meta header for the metadata group category (which of the two distance matrices)
-groups <- c('asp','stool')  # Names of the two categories in the group
+thing <- 'AnimalID_name'  # The meta header for the participant ID column
+group <- 'Bodysite'  # The meta header for the metadata group category (which of the two distance matrices)
+groups <- c('Foregut','Hindgut')  # Names of the two categories in the group
 metaA <- meta[meta[,group] == groups[1],]  # Split the metadata into the two groups
 metaB <- meta[meta[,group] == groups[2],]
 
