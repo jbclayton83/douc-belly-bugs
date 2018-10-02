@@ -1,7 +1,7 @@
 ## Set up the R environment
 #source("http://bioconductor.org/biocLite.R");
 #biocLite("phyloseq");
-install.packages(c("ape","vegan","picante","ggplot2","phyloseq","doParallel","foreach"))
+#install.packages(c("ape","vegan","picante","ggplot2","phyloseq","doParallel","foreach"))
 source('http://bioconductor.org/biocLite.R')
 biocLite('phyloseq')
 library(ape);
