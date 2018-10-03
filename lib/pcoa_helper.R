@@ -22,6 +22,7 @@ plot_pcoa = function(dist_obj, sub.map, category, do_ellipse = T, title = NULL) 
   PCOA[,category] = sub.map[,category];
   p = ggplot(PCOA) +
     geom_point(aes(x = PC1, y = PC2, color = PCOA[,category])) +
+    theme(panel.background = element_blank()) +
     labs(title=title) +
     labs(color=category) + labs(fill=category);
   if (do_ellipse) return(p+stat_ellipse(level=0.95, alpha= 0.3, geom="polygon", linetype="blank", 
