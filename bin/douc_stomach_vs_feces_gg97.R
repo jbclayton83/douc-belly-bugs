@@ -227,7 +227,7 @@ for (L in 1:length(bT)) {
   otu.m$Taxa = factor(otu.m$Taxa,levels=byAbundance,ordered=T) # add Taxa column
   
   ## Plot according to Bodysite, sorted by abundance
-  pdf(paste0("results/gg97_stomach_feces/TaxaSummary_stomachvsfeces_gg97_L",bT[L],".pdf"),width = 8,height=7) # Make room for legend
+  pdf(paste0("results/gg97_stomach_feces/TaxaSummary_stomachvsfeces_gg97_L",bT[L],".pdf"), width=8, height=7) # Make room for legend
   plot(ggplot(otu.m, aes(x = Bodysite, y = RelativeAbundance, fill = Taxa)) +
          geom_bar(stat ="identity", position="fill") + labs(x="Bodysite",y="Root Relative Abundance") +
          guides(fill=guide_legend(ncol=1)) +
@@ -376,22 +376,22 @@ for (L in 1:length(bT)) {
   BS = map$Subject
   Grp.Pvals=rep(1,ntax)
   Grp.Corrs=rep(0,ntax)
-  #KW.Pvals=rep(1,ntax)
-  TT.Pvals=rep(1,ntax)
+  KW.Pvals=rep(1,ntax)
+  #TT.Pvals=rep(1,ntax)
   for (m.ix in 1:ntax) {  # Loop through all the rows (taxa)
     try({ # Because some correlations may be inadmissable
-      #ps = polyserial(otu.t[m.ix,],map$Subject,ML=T,std.err = T)
-      #if (is.na(pchisq(ps$chisq, ps$df))) next # Invalid correlation
-      #Grp.Corrs[m.ix] = ps$rho             # Find intensity of correlation
-      #Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) # And p-value on this
+      ps = polyserial(otu.t[m.ix,],map$Subject,ML=T,std.err = T)
+      if (is.na(pchisq(ps$chisq, ps$df))) next # Invalid correlation
+      Grp.Corrs[m.ix] = ps$rho             # Find intensity of correlation
+      Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) # And p-value on this
       # Wilcoxon Test
-      one <- otu.t[m.ix,grep("a",map$Subject,value=F)] # Only subject id's #a
-      two <- otu.t[m.ix,grep("b",map$Subject,value=F)] # Only subject id's #b
-      Grp.Pvals[m.ix] <- wilcox.test(one, two)$p.value
-      Grp.Corrs[m.ix] <- biserial.cor(otu.t[m.ix,], gsub('[ab]','',map$Subject), use = "complete.obs")
+      #one <- otu.t[m.ix,grep("a",map$Subject,value=F)] # Only subject id's #a
+      #two <- otu.t[m.ix,grep("b",map$Subject,value=F)] # Only subject id's #b
+      #Grp.Pvals[m.ix] <- wilcox.test(one, two)$p.value
+      #Grp.Corrs[m.ix] <- biserial.cor(otu.t[m.ix,], gsub('[ab]','',map$Subject), use = "complete.obs")
     },silent=T)
-    #KW.Pvals[m.ix] = kruskal.test(otu.t[m.ix,] ~ map$Subject)$p.val
-    TT.Pvals[m.ix] = t.test(otu.t[m.ix,], gsub('[ab]','',map$Subject), conf.level = 0.95)$p.value
+    KW.Pvals[m.ix] = kruskal.test(otu.t[m.ix,] ~ map$Subject)$p.val
+    #TT.Pvals[m.ix] = t.test(otu.t[m.ix,], gsub('[ab]','',map$Subject), conf.level = 0.95)$p.value
   }
   
   ## Taxa barplots -- Top 15 most abundant (kruskal sig. + other?)
@@ -420,11 +420,59 @@ for (L in 1:length(bT)) {
   otu.m = melt(otu.m, id.vars = "SampleID", variable.name = "Taxa", value.name = "RelativeAbundance")
   otu.m = merge(otu.m, map[,c("SampleID","Subject")], by="SampleID")
   otu.m$Taxa = factor(otu.m$Taxa,levels=byAbundance,ordered=T) # add Taxa column
+  otu.m$Subject = gsub("a", "f", otu.m$Subject) # change name to #f for foregut
+  otu.m$Subject = gsub("b", "h", otu.m$Subject) # change name to #h for hindgut
   
   ## Plot according to Subject, sorted by abundance
   pdf(paste0("results/gg97_stomach_feces/TaxaSummary_stomachvsfeces_subject_gg97_L",bT[L],".pdf"),width = 8,height=7) # Make room for legend
   plot(ggplot(otu.m, aes(x = Subject, y = RelativeAbundance, fill = Taxa)) +
-         geom_bar(stat ="identity", position="fill") + labs(x="Subject",y="Root Relative Abundance") +
+         geom_bar(stat ="identity", position="fill") + labs(x="Subject",y="Root Relative Abundance", title="Relative Abundance by Subject") +
+         guides(fill=guide_legend(ncol=1)) +
+         theme(panel.background = element_blank()) +
+         scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
+                                    "green4",
+                                    "#6A3D9A", # purple
+                                    "#FF7F00", # orange
+                                    "black","gold1",
+                                    "skyblue2","#FB9A99", # lt pink
+                                    "palegreen2",
+                                    "#CAB2D6", # lt purple
+                                    "#FDBF6F", # lt orange
+                                    "gray70", "khaki2",
+                                    "maroon","orchid1","deeppink1","blue1","steelblue4",
+                                    "darkturquoise","green1","yellow4","yellow3",
+                                    "darkorange4","brown"))) 
+  dev.off()
+  
+  ## Plot according to Subject, sorted by abundance (Foregut only)
+  otu.mf <- otu.m[grep("f", otu.m$Subject),]
+  otu.mf$Subject <- gsub("f", "", otu.mf$Subject)
+  pdf(paste0("results/gg97_stomach_feces/TaxaSummary_stomachvsfeces_subject_gg97_L",bT[L],"_F.pdf"),width = 8,height=7) # Make room for legend
+  plot(ggplot(otu.mf, aes(x = Subject, y = RelativeAbundance, fill = Taxa)) +
+         geom_bar(stat ="identity", position="fill") + labs(x="Subject",y="Root Relative Abundance", title="Foregut Relative Abundance") +
+         guides(fill=guide_legend(ncol=1)) +
+         theme(panel.background = element_blank()) +
+         scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
+                                    "green4",
+                                    "#6A3D9A", # purple
+                                    "#FF7F00", # orange
+                                    "black","gold1",
+                                    "skyblue2","#FB9A99", # lt pink
+                                    "palegreen2",
+                                    "#CAB2D6", # lt purple
+                                    "#FDBF6F", # lt orange
+                                    "gray70", "khaki2",
+                                    "maroon","orchid1","deeppink1","blue1","steelblue4",
+                                    "darkturquoise","green1","yellow4","yellow3",
+                                    "darkorange4","brown"))) 
+  dev.off()
+  
+  ## Plot according to Subject, sorted by abundance (Hindgut only)
+  otu.mh <- otu.m[grep("h", otu.m$Subject),]
+  otu.mh$Subject <- gsub("h", "", otu.mh$Subject)
+  pdf(paste0("results/gg97_stomach_feces/TaxaSummary_stomachvsfeces_subject_gg97_L",bT[L],"_H.pdf"),width = 8,height=7) # Make room for legend
+  plot(ggplot(otu.mh, aes(x = Subject, y = RelativeAbundance, fill = Taxa)) +
+         geom_bar(stat ="identity", position="fill") + labs(x="Subject",y="Root Relative Abundance", title="Hindgut Relative Abundance") +
          guides(fill=guide_legend(ncol=1)) +
          theme(panel.background = element_blank()) +
          scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
@@ -444,15 +492,15 @@ for (L in 1:length(bT)) {
   
   ## Display differential taxa/stats
   # Adjust for multiple tests, sort by significance
-  gpb = Grp.Pvals; wpb = TT.Pvals;
+  gpb = Grp.Pvals; wpb = KW.Pvals;
   Grp.Pvals = p.adjust(gpb,method = "BH")
-  TT.Pvals = p.adjust(wpb,method = "BH")
-  res = data.frame(TT.Pvals, Grp.Pvals, Grp.Corrs,row.names=rownames(otu.t))
+  KW.Pvals = p.adjust(wpb,method = "BH")
+  res = data.frame(KW.Pvals, Grp.Pvals, Grp.Corrs,row.names=rownames(otu.t))
   res = res[order(res$KW.Pvals),]
   
   # Add bivariate filter
   sig = 0.05
-  selection = res$TT.Pvals < sig
+  selection = res$KW.Pvals < sig
   
   # Display all significant with p < 0.05
   num_sig = sum(selection, na.rm = T) # Count how many are significant
