@@ -338,6 +338,8 @@ library(robCompositions) # Composition magic
 library(polycor)
 library(beeswarm)
 library(reshape2)
+library(phyloseq)
+library(vegan)
 
 bT = c(2,4,6,7)  # Levels to consider for the bugs
 lscolors = c("red","green")
@@ -347,15 +349,12 @@ for (L in 1:length(bT)) {
   taxaStrings = sapply(split,function(x) paste(x[1:bT[L]],collapse=";"))           # Create collapsed names
   for (i in 1:7) taxaStrings = gsub("(;[A-z]__$)?(;NA$)?","",taxaStrings,perl=T)   # Clean tips
   otu.t = rowsum(taxa,taxaStrings) # Collapse table by name
-  
   # Filter out bugs that don't appear in enough samples
   select = rowSums(otu.t > 0) > min(table(map$Subject))/2 # reasonable general min
   otu.t = otu.t[select,]                                    # Apply drop mask
   otu.t = otu.t[,rownames(map)]                             # Sync with map samp order
   otu.n = sweep(otu.t,2,colSums(otu.t),'/');                # Normalize to relative abundance
-  
-
-### CLR transformation ###
+  ### CLR transformation ###
   all.otus.c <- t(otu.t); eps <- 0.5
   all.otus.c <- all.otus.c * (1 - rowSums(all.otus.c==0) * eps / rowSums(all.otus.c))
   all.otus.c[all.otus.c == 0] <- eps
@@ -365,34 +364,37 @@ for (L in 1:length(bT)) {
   all.otus.c <- all.otus.c[, !is.nan(colSums(all.otus.c))]
   otu.t <- as.data.frame(all.otus.c)
   
-  # otu.c = impRZilr(t(otu.t)+0.0,dl=rep(1,nrow(otu.t)),maxit = 3,verbose = T,method = "lm") # zeros
-  # otu.c = t(cenLR(otu.c$x)$x.clr)    # Centered log-ratio transform for compositions
-  # colnames(otu.c) = colnames(otu.t)  # Because this gets rid of the names...
-  # otu.t = otu.c                      # otu.t is our active table; give it the CLR
+  # Load OTU data for calculating distances
+  otu.d <- as.matrix(otu) # get matrix
+  # Filter out bugs that don't appear in enough samples
+  select = rowSums(otu.d > 0) > min(table(map$Subject))   # Reasonable general min
+  otu.d = otu.d[select,]                                  # Apply drop mask
+  otu.d = otu.d[,rownames(map)]                           # Sync with map order
+  otu.dn = sweep(otu.d, 2, colSums(otu), '/');             # Normalize to relative abundance
+  # Convert to relative abundance - CLR
+  eps = 0.5
+  otu.d = abs(otu.d * (1 - rowSums(otu.d==0) * eps / rowSums(otu.d))) #added absolute value... is that ok?
+  otu.d[otu.d==0] <- eps
+  otu.d = sweep(otu.d,1,rowSums(otu.d),'/');
+  ls = log(otu.d) # NAs being produced here due to negative values above
+  otu.d = t(ls - rowMeans(ls))
+  otu.d <- otu.d[, !is.nan(colSums(otu.d))]
   
-  # Go through each taxon and test for significance w/group
-  otu.t = as.matrix(otu.t)
-  ntax = nrow(otu.t)
-  BS = map$Subject
-  Grp.Pvals=rep(1,ntax)
-  Grp.Corrs=rep(0,ntax)
-  KW.Pvals=rep(1,ntax)
-  #TT.Pvals=rep(1,ntax)
-  for (m.ix in 1:ntax) {  # Loop through all the rows (taxa)
-    try({ # Because some correlations may be inadmissable
-      ps = polyserial(otu.t[m.ix,],map$Subject,ML=T,std.err = T)
-      if (is.na(pchisq(ps$chisq, ps$df))) next # Invalid correlation
-      Grp.Corrs[m.ix] = ps$rho             # Find intensity of correlation
-      Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) # And p-value on this
-      # Wilcoxon Test
-      #one <- otu.t[m.ix,grep("a",map$Subject,value=F)] # Only subject id's #a
-      #two <- otu.t[m.ix,grep("b",map$Subject,value=F)] # Only subject id's #b
-      #Grp.Pvals[m.ix] <- wilcox.test(one, two)$p.value
-      #Grp.Corrs[m.ix] <- biserial.cor(otu.t[m.ix,], gsub('[ab]','',map$Subject), use = "complete.obs")
-    },silent=T)
-    KW.Pvals[m.ix] = kruskal.test(otu.t[m.ix,] ~ map$Subject)$p.val
-    #TT.Pvals[m.ix] = t.test(otu.t[m.ix,], gsub('[ab]','',map$Subject), conf.level = 0.95)$p.value
-  }
+  # Calculate Foregut/Hindgut Relationships (FF, HH, FH) - Distances/Permutations
+  # We want to measure the observed distances among all foreguts, among all hindguts,
+  # and between foregut/hindgut for each individual. To validate these values, we can
+  # conduct a permutation of these distances (changing the labels in the otu tree).
+  phyobj <- phyloseq(otu_table(otu.d, taxa_are_rows=F), tree)
+  obs <- UniFrac(phyobj, weighted=F) # observed unweighted UniFrac distances
+  obs.m <- as.matrix(obs)  # view as matrix for calculating sums
+  obs.ff <- sum(obs.m[seq(from=1, to=12, by=2), seq(from=2, to=12, by=2)])/30 # foreguts across all subjects (mean)
+  obs.hh <- sum(obs.m[seq(from=2, to=12, by=2), seq(from=2, to=12, by=2)])/30 # hindguts across all subjects (mean)
+  obs.fh <- sum(c(obs.m[2,1], obs.m[4,3], obs.m[6,5], obs.m[8,7], obs.m[10,9], obs.m[12,11]))/6 # foregut-hindgut for each subject (mean)
+  ### Foregut/Hindgut
+  adonis(obs ~ map$Bodysite, permutations=999)   # permutation to determine validity of distances
+  ### Individual - is this necessary??
+  #map$Individual <- gsub("[ab]", "", map$Subject)
+  #adonis(obs ~ map$Individual, permuations=999) # permutation to determine validity of distance
   
   ## Taxa barplots -- Top 15 most abundant (kruskal sig. + other?)
   otu.m = otu.n
@@ -488,40 +490,6 @@ for (L in 1:length(bT)) {
                                     "maroon","orchid1","deeppink1","blue1","steelblue4",
                                     "darkturquoise","green1","yellow4","yellow3",
                                     "darkorange4","brown"))) 
-  dev.off()
-  
-  ## Display differential taxa/stats
-  # Adjust for multiple tests, sort by significance
-  gpb = Grp.Pvals; wpb = KW.Pvals;
-  Grp.Pvals = p.adjust(gpb,method = "BH")
-  KW.Pvals = p.adjust(wpb,method = "BH")
-  res = data.frame(KW.Pvals, Grp.Pvals, Grp.Corrs,row.names=rownames(otu.t))
-  res = res[order(res$KW.Pvals),]
-  
-  # Add bivariate filter
-  sig = 0.05
-  selection = res$KW.Pvals < sig
-  
-  # Display all significant with p < 0.05
-  num_sig = sum(selection, na.rm = T) # Count how many are significant
-  res = res[selection,]
-  
-  # Truncate names to last 2 informative levels
-  split = strsplit(rownames(res),";")        # Split by semicolon into levels
-  res$short = sapply(split,function(x) paste(tail(x,2),collapse=";"))
-  
-  pdf(paste0("results/gg97_stomach_feces/TaxaSwarms_stomachvsfeces_subject_gg97_L",bT[L],".pdf"),width = 6.5,height=6.5)
-  sink(paste0("results/gg97_stomach_feces/Taxa_Significance_stomachvsfeces_subject_gg97_L",bT[L],".txt"))   # Get ready to write the significant ones
-  cat("Taxon\tWilcoxon_P\tBiserial_Cor\tSubject_P\n")  # Print header
-  if (num_sig) for (i in 1:num_sig) {
-    taxon = rownames(res)[i]
-    cat(res[taxon,]$short,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$KW.Pvals[i],'\t','\n',sep='')
-    beeswarm(otu.t[taxon,] ~ map$Subject, xlab="Subject",ylab="CLR Relative Abundance",main=res[taxon,]$short,
-             col=alpha(lscolors,0.7),
-             cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
-    bxplot(otu.t[taxon,] ~ map$Subject, add = TRUE)
-  }
-  sink(NULL)
   dev.off()
   
   ## Heatmap ##
