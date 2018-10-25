@@ -1,5 +1,18 @@
+library(vegan)
+library(ggplot2)
+library(ape)
+source('lib/pcoa_helper.R') # for pcoa plots
+library(phyloseq)
+library(ggsignif)
+library(gplots)
+library(RColorBrewer)
+library(robCompositions) # Composition magic
+library(polycor)
+library(beeswarm)
+library(reshape2)
+library(ltm)
+
 #### DATA WRANGLING ####
-#setwd('/data/analyses/monkey/') # Sets the working directory
 map = read.delim('data/gg97/douc_stomach_vs_feces_matching_mapfile_082417.txt', row.names = 1) # Grab the map
 # map$Bodysite = factor(levels = c("Foregut","Hindgut"),ordered = T)
 
@@ -8,45 +21,61 @@ taxa = read.delim('data/gg97/douc_stomach_vs_feces_taxatable_gg97.txt',row=1,as.
 taxa = taxa[,rownames(map)]  # sync the sample names for the Taxa table
 otu = read.delim('data/gg97/douc_stomach_vs_feces_otutable_gg97.txt',row=1,as.is=T)
 otu = otu[,rownames(map)]  # sync the sample names for the OTU table
+dim(otu) # 4502 otus identified across 12 samples
+
+sum(otu) # total reads is under 1 million so singleton threshold is 1
+otu <- otu[(rowSums(otu) > 1), ]  # Remove singletons
+dim(otu) # 3379 otus identified across 12 samples
+
+depths = colSums(otu)
+sort(depths)  # All are good, lowest is 58484.
+
+dim(taxa) # 371 taxa identified across 12 samples
+taxa <- taxa[(rowSums(taxa) > 1), ]  # Remove singletons
+dim(taxa) # 318 taxa identified across 12 samples
+depths.t = colSums(taxa)
+sort(depths.t)  # All are good, lowest is 58552.
+
+# Remove rare otus/taxa
+# otu = otu[rowMeans(otu > 0) >= 0.1, ]  # Remove rare otu in only one of samples in this case
+# taxa = taxa[rowMeans(taxa > 0) >= 0.1, ]  # Remove rare taxa, <10% prevalence = if only in one sample in this case
+# dim(taxa)
+
+otu.rare <- data.frame(t(rrarefy(t(otu), 58480)))
+taxa.rare <- data.frame(t(rrarefy(t(taxa), 58550)))
+colSums(taxa.rare)
+colSums(otu.rare)
 
 
 #### F/B Ratio ####
 pdf("results/gg97_stomach_feces/ReadDepth_closed_bodysite_stomachvsfeces_gg97.pdf",width=6,height=5.5)
 plot(colSums(taxa) ~ map$Bodysite,xlab="Bodysite",ylab="Read depth (closed)")
 dev.off()
-isFirmicutes = grepl('p__Firmicutes',rownames(taxa)) # Save "trues" for Firmicutes, false otherwise
+isFirmicutes = grepl('p__Firmicutes',rownames(taxa))     # Save "trues" for Firmicutes, false otherwise
 isBacteroides = grepl('p__Bacteroidetes',rownames(taxa)) # Like above for Bacteroidetes
 FBratio = log(colSums(taxa[isFirmicutes,])/colSums(taxa[isBacteroides,])) # Firmicutes/Bacteroidetes log-ratio, vector of lrs named by sampleID
 
-# Kruskal Test - nonparametric, one-way ANOVA with rank (unnecessary for only two levels)
-#kruskal.test(FBratio ~ map$Bodysite)
-# 1 Sample Wilcoxon - nonparametric, similar to 1 sample t-test (loop is unnecessary for two levels)
-#for (i in 1:length(levels(map$Bodysite))) for (j in i:length(levels(map$Bodysite))) {
-  #if (i == j) next
-  #p = wilcox.test(FBratio[map$Bodysite==levels(map$Bodysite)[i]],FBratio[map$Bodysite==levels(map$Bodysite)[j]])
-  #cat(levels(map$Bodysite)[i]," vs ",levels(map$Bodysite)[j]," p = ",p$p.value,"\n",sep='')
-#}
+
+#### Statistical Tests - Bodysite ####
 # Independent 2-group Mann Whitney U Test (assumes independent samples)
 wilcox.test(FBratio ~ map$Bodysite)
-# Paired Wilcoxon (this test assumes related samples, as in multiple measurements from same patients)
+# Paired Wilcoxon (assumes related samples)
 wilcox.test(FBratio[map$Bodysite == 'Foregut'], FBratio[map$Bodysite == 'Hindgut'], paired = TRUE, alternative = "two.sided")
 pdf("results/gg97_stomach_feces/FBratio_bodysite_stomachvsfeces_gg97.pdf",width=6,height=5.5)
 plot(FBratio ~ map$Bodysite, xlab="Bodysite", ylab="Log F:B ratio")
 dev.off()
-df = data.frame(FBratio, map$Bodysite)     # Split manually into groups
-tapply(FBratio, map$Bodysite, mean)  # Get the means per group
+df = data.frame(FBratio, map$Bodysite)     # Split into groups by bodysite
+tapply(FBratio, map$Bodysite, mean)  # Get the mean FB ratio per group
 tapply(FBratio, map$Bodysite, sd)    # Gets the standard devs per group
+# Plotting Number of Taxa: Bacteroides vs. Firmicutes
+# plot(colSums(taxa[isBacteroides,]) ~ map$Bodysite)
+# plot(colSums(taxa[isFirmicutes,]) ~ map$Bodysite)
 
-#plot(colSums(taxa[isBacteroides,]) ~ map$Bodysite)
-#plot(colSums(taxa[isFirmicutes,]) ~ map$Bodysite)
 
-
-#### PCoA plots - Bodysite #### (requires map and otu table loaded) 
-source('lib/pcoa_helper.R') # This gives us our nice pcoa functions
-library(phyloseq)
+#### PCoA plots - Bodysite #### (requires map and otu table loaded)
 tree = read_tree_greengenes('data/gg97/gg97.tre')
-otu.s = as.matrix(otu)  # Rip of the taxonomy column, as it is not needed 
-bray = vegdist(t(otu.s))             # Get some bray curtis distances
+otu.s = as.matrix(otu)        # Matrix form of otu table 
+bray = vegdist(t(otu.s))      # Get some bray curtis distances
 pdf("results/gg97_stomach_feces/bray_bodysite_stomachvsfeces_gg97.pdf",width=6,height=4.75); plot_pcoa(bray,map,category='Bodysite');
 pdf("results/gg97_stomach_feces/uuf_bodysite_stomachvsfeces_gg97.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.s,map,tree,category='Bodysite',weight=F); 
 pdf("results/gg97_stomach_feces/wuf_bodysite_stomachvsfeces_gg97.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.s,map,tree,category='Bodysite',weight=T); 
@@ -57,31 +86,27 @@ adonis(bray ~ map$Bodysite)         # Do stats for bray-curtis too, why not
 
 
 #### PCoA plots - Dead or Alive #### (requires map and otu table loaded) 
-source('lib/pcoa_helper.R') # This gives us our nice pcoa functions
-library(phyloseq)
-tree = read_tree_greengenes('data/gg97/gg97.tre')
-otu.s = as.matrix(otu)  # Rip of the taxonomy column, as it is not needed 
-bray = vegdist(t(otu.s))             # Get some bray curtis distances
-pdf("results/gg97_stomach_feces/bray_alive_or_deceased_stomachvsfeces_gg97.pdf",width=6,height=4.75); plot_pcoa(bray,map,category='Alive_or_Deceased_as_of_091814');
-pdf("results/gg97_stomach_feces/uuf_alive_or_deceased_stomachvsfeces_gg97.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.s,map,tree,category='Alive_or_Deceased_as_of_091814',weight=F); 
-pdf("results/gg97_stomach_feces/wuf_alive_or_deceased_stomachvsfeces_gg97.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.s,map,tree,category='Alive_or_Deceased_as_of_091814',weight=T); 
-graphics.off()
-adonis(pcoa.u ~ map$Alive_or_Deceased_as_of_091814)       # Do stats for clustering (unweighted)
-adonis(pcoa.w ~ map$Alive_or_Deceased_as_of_091814)       # Do stats for clustering (weighted)
-adonis(bray ~ map$Alive_or_Deceased_as_of_091814)         # Do stats for bray-curtis too, why not
-# ~Dropbox/douc-belly-bugs/src/
+# tree = read_tree_greengenes('data/gg97/gg97.tre')
+# otu.s = as.matrix(otu)      # Matrix form of otu table
+# bray = vegdist(t(otu.s))    # Get some bray curtis distances
+# pdf("results/gg97_stomach_feces/bray_alive_or_deceased_stomachvsfeces_gg97.pdf",width=6,height=4.75); plot_pcoa(bray,map,category='Alive_or_Deceased_as_of_091814');
+# pdf("results/gg97_stomach_feces/uuf_alive_or_deceased_stomachvsfeces_gg97.pdf",width=6,height=4.75); pcoa.u = plot_unifrac(otu.s,map,tree,category='Alive_or_Deceased_as_of_091814',weight=F); 
+# pdf("results/gg97_stomach_feces/wuf_alive_or_deceased_stomachvsfeces_gg97.pdf",width=6,height=4.75); pcoa.w = plot_unifrac(otu.s,map,tree,category='Alive_or_Deceased_as_of_091814',weight=T); 
+# graphics.off()
+# adonis(pcoa.u ~ map$Alive_or_Deceased_as_of_091814)       # Do stats for clustering (unweighted)
+# adonis(pcoa.w ~ map$Alive_or_Deceased_as_of_091814)       # Do stats for clustering (weighted)
+# adonis(bray ~ map$Alive_or_Deceased_as_of_091814)         # Do stats for bray-curtis too, why not
+
 
 #### Alpha diversity violin plots - Bodysite ####
-library(vegan)
-(mindepth = min(colSums(otu))) # for row, -grep("Chloroplast",otu$taxonomy)?
-otu.r = rrarefy(t(otu),mindepth) # Rarefy to the minimum sample depth
-div.shannon = diversity(otu.r,"shannon")
-div.isimp = diversity(otu.r,"invsimpson")
+(mindepth = min(colSums(otu)))    # Minimum depth is 58484
+otu.r = rrarefy(t(otu),mindepth)  # Rarefy to the minimum sample depth - otu.r is transposed
+div.shannon = diversity(otu.r,"shannon")   # Shannon index
+div.isimp = diversity(otu.r,"invsimpson")  # Simpson (inverse) index
 plot(div.isimp~map$Bodysite, xlab="Body Site",ylab="Shannon Diversity")
 plot(div.shannon~map$Bodysite, xlab="Body Site",ylab="Inverse Simpson Diversity")
 plot(rowSums(otu.r > 0) ~ map$Bodysite, xlab="Body Site",ylab="Number of OTUs")
 
-library(ggsignif)
 otu.ad = data.frame(Div=div.shannon, Body_site=map$Bodysite)
 grps = levels(map$Bodysite)
 lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
@@ -103,56 +128,46 @@ dev.off()
 
 
 #### Alpha diversity violin plots - Alive or Deceased####
-library(vegan)
-(mindepth = min(colSums(otu))) # for row, -grep("Chloroplast",otu$taxonomy)?
-otu.r = rrarefy(t(otu),mindepth) # Rarefy to the minimum sample depth
-div.shannon = diversity(otu.r,"shannon")
-div.isimp = diversity(otu.r,"invsimpson")
-plot(div.isimp~map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Shannon Diversity")
-plot(div.shannon~map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Inverse Simpson Diversity")
-plot(rowSums(otu.r > 0) ~ map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Number of OTUs")
-
-library(ggsignif)
-otu.ad = data.frame(Div=div.shannon, Status=map$Alive_or_Deceased_as_of_091814)
-grps = levels(map$Alive_or_Deceased_as_of_091814)
-lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
-pdf(paste0("results/gg97_stomach_feces/AlphaDiv_alive_or_deceased_doucvsfeces_gg97.pdf"),width=6,height=5.5)
-plot(ggplot(otu.ad,aes(x=Status,y=Div,fill=Status)) + ylab(lab) +xlab("Alive or Dead") + geom_violin(alpha=0.3) + 
-       geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
-       geom_jitter(aes(color=Status),position=position_jitter(0.2),size=2) +
-       theme(panel.background = element_blank())  )
-dev.off()
-otu.ad = data.frame(Div=rowSums(otu.r > 0), Status=map$Alive_or_Deceased_as_of_091814)
-grps = levels(map$Alive_or_Deceased_as_of_091814)
-lab = "Alpha Diversity (Number of OTUs)" 
-pdf(paste0("results/gg97_stomach_feces/numOTU_alive_or_deceased_stomachvsfeces_gg97.pdf"),width=6,height=5.5)
-plot(ggplot(otu.ad,aes(x=Status,y=Div,fill=Status)) + ylab(lab) + xlab("Alive or Dead") + geom_violin(alpha=0.3) + 
-       geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
-       geom_jitter(aes(color=Status),position=position_jitter(0.2),size=2) +
-       theme(panel.background = element_blank())  )
-dev.off()
+# (mindepth = min(colSums(otu)))
+# otu.r = rrarefy(t(otu),mindepth) # Rarefy to the minimum sample depth, otu.r is transposed
+# div.shannon = diversity(otu.r,"shannon")
+# div.isimp = diversity(otu.r,"invsimpson")
+# plot(div.isimp~map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Shannon Diversity")
+# plot(div.shannon~map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Inverse Simpson Diversity")
+# plot(rowSums(otu.r > 0) ~ map$Alive_or_Deceased_as_of_091814, xlab="Alive or Dead",ylab="Number of OTUs")
+# 
+# otu.ad = data.frame(Div=div.shannon, Status=map$Alive_or_Deceased_as_of_091814)
+# grps = levels(map$Alive_or_Deceased_as_of_091814)
+# lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
+# pdf(paste0("results/gg97_stomach_feces/AlphaDiv_alive_or_deceased_doucvsfeces_gg97.pdf"),width=6,height=5.5)
+# plot(ggplot(otu.ad,aes(x=Status,y=Div,fill=Status)) + ylab(lab) +xlab("Alive or Dead") + geom_violin(alpha=0.3) + 
+#        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
+#        geom_jitter(aes(color=Status),position=position_jitter(0.2),size=2) +
+#        theme(panel.background = element_blank())  )
+# dev.off()
+# otu.ad = data.frame(Div=rowSums(otu.r > 0), Status=map$Alive_or_Deceased_as_of_091814)
+# grps = levels(map$Alive_or_Deceased_as_of_091814)
+# lab = "Alpha Diversity (Number of OTUs)" 
+# pdf(paste0("results/gg97_stomach_feces/numOTU_alive_or_deceased_stomachvsfeces_gg97.pdf"),width=6,height=5.5)
+# plot(ggplot(otu.ad,aes(x=Status,y=Div,fill=Status)) + ylab(lab) + xlab("Alive or Dead") + geom_violin(alpha=0.3) + 
+#        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
+#        geom_jitter(aes(color=Status),position=position_jitter(0.2),size=2) +
+#        theme(panel.background = element_blank())  )
+# dev.off()
 
 
 #### Differential taxa testing - by Bodysite ####
-library(gplots)
-library(RColorBrewer)
-library(robCompositions) # Composition magic
-library(polycor)
-library(beeswarm)
-library(reshape2)
-library(ltm)
-
 bT = c(2,4,6,7)  # Levels to consider for the bugs
 lscolors = c("red","green")
 for (L in 1:length(bT)) {
   # Massage the taxa names
   split = strsplit(rownames(taxa),";")  # Split by semicolon into levels
-  taxaStrings = sapply(split,function(x) paste(x[1:bT[L]],collapse=";"))           # Create collapsed names
-  for (i in 1:7) taxaStrings = gsub("(;[A-z]__$)?(;NA$)?","",taxaStrings,perl=T)   # Clean tips
-  otu.t = rowsum(taxa,taxaStrings) # Collapse table by name
+  taxaStrings = sapply(split,function(x) paste(x[1:bT[L]],collapse=";"))          # Create collapsed names
+  for (i in 1:7) taxaStrings = gsub("(;[A-z]__$)?(;NA$)?","",taxaStrings,perl=T)  # Clean tips
+  otu.t = rowsum(taxa,taxaStrings)  # Collapse table by name
   
   # Filter out bugs that don't appear in enough samples
-  select = rowSums(otu.t > 0) > min(table(map$Bodysite))/2 # reasonable general min
+  select = rowSums(otu.t > 0) > min(table(map$Bodysite))/2  # reasonable general min
   otu.t = otu.t[select,]                                    # Apply drop mask
   otu.t = otu.t[,rownames(map)]                             # Sync with map samp order
   otu.n = sweep(otu.t,2,colSums(otu.t),'/');                # Normalize to relative abundance
@@ -167,44 +182,37 @@ for (L in 1:length(bT)) {
   all.otus.c <- all.otus.c[, !is.nan(colSums(all.otus.c))]
   otu.t <- as.data.frame(all.otus.c)
   
-  # otu.c = impRZilr(t(otu.t)+0.0,dl=rep(1,nrow(otu.t)),maxit = 3,verbose = T,method = "lm") # zeros
-  # otu.c = t(cenLR(otu.c$x)$x.clr)    # Centered log-ratio transform for compositions
-  # colnames(otu.c) = colnames(otu.t)  # Because this gets rid of the names...
-  # otu.t = otu.c                      # otu.t is our active table; give it the CLR
-  
   # Go through each taxon and test for significance w/group
   otu.t = as.matrix(otu.t)
   ntax = nrow(otu.t)
   BS = map$Bodysite
   Grp.Pvals=rep(1,ntax)
   Grp.Corrs=rep(0,ntax)
-  #KW.Pvals=rep(1,ntax)
   TT.Pvals=rep(1,ntax)
   for (m.ix in 1:ntax) {  # Loop through all the rows (taxa)
     try({ # Because some correlations may be inadmissable
       # For >2 levels
       #ps = polyserial(otu.t[m.ix,],map$Bodysite,ML=T,std.err = T)
-      #if (is.na(pchisq(ps$chisq, ps$df))) next # Invalid correlation
-      #Grp.Corrs[m.ix] = ps$rho             # Find intensity of correlation
+      #if (is.na(pchisq(ps$chisq, ps$df))) next    # Invalid correlation
+      #Grp.Corrs[m.ix] = ps$rho                    # Find intensity of correlation
       #Grp.Pvals[m.ix] = 1-pchisq(ps$chisq, ps$df) # And p-value on this
       # For 2 levels (Paired Wilcoxon)
-      fg <- otu.t[m.ix,map$Bodysite == "Foregut"] #only foregut vals- should be ordered by patient
-      hg <- otu.t[m.ix,map$Bodysite == "Hindgut"] #only hindgut vals- should be ordered by patient
-      pw <- wilcox.test(fg, hg, paired = TRUE) #just looks for difference, can also test "greater" or "less"
+      fg <- otu.t[m.ix,map$Bodysite == "Foregut"]  # Only foregut vals- should be ordered by patient
+      hg <- otu.t[m.ix,map$Bodysite == "Hindgut"]  # Only hindgut vals- should be ordered by patient
+      pw <- wilcox.test(fg, hg, paired = TRUE)     # Paired difference
       Grp.Pvals[m.ix] <- pw$p.value
       Grp.Corrs[m.ix] <- biserial.cor(otu.t[m.ix,], map$Bodysite, use = "complete.obs")
     },silent=T)
-    #KW.Pvals[m.ix] = kruskal.test(otu.t[m.ix,] ~ map$Bodysite)$p.val
-    TT.Pvals[m.ix] <- t.test(otu.t[m.ix,map$Bodysite == "Foregut"], otu.t[m.ix,map$Bodysite == "Hindgut"], paired = TRUE, conf.level = 0.95)$p.value
-    # add Chi-Squared Test as well (? - assumes independence of variables)
+    TT.Pvals[m.ix] <- t.test(otu.t[m.ix,map$Bodysite == "Foregut"], otu.t[m.ix,map$Bodysite == "Hindgut"], paired = TRUE, conf.level = 0.95)$p.value  # Paired difference - ttest
   }
   
   ## Taxa barplots -- Top 15 most abundant (t-test sig. + other?)
   otu.m = otu.n
   otu.m = sweep(sqrt(otu.m),2,colSums(sqrt(otu.m)),'/')
-  meanAb = apply(otu.m,1,FUN=function(x) tapply(x, map$Bodysite, mean)) # group mean
+  meanAb = apply(otu.m,1,FUN=function(x) tapply(x, map$Bodysite, mean)) # Group mean
   ranked = order(apply(meanAb,2,max),decreasing=T)
   otu.m = otu.m[ranked,]
+  otu.m = otu.m[!grepl('c__Chloroplast', rownames(otu.m), fixed = T), ]  # Remove chloroplast if present
   
   # Truncate names to last 2 informative levels
   split = strsplit(rownames(otu.m),";")        # Split by semicolon into levels
@@ -216,10 +224,10 @@ for (L in 1:length(bT)) {
   # Sort by average abundance for display
   byAbundance = rownames(otu.m)[order(rowMeans(otu.m),decreasing=T)]
   
-  # Acrobatics for ggplot2 (yes, this is inane)
-  otu.m = data.frame(t(otu.m),check.names=F)      # flip table
-  otu.m$SampleID = rownames(otu.m)  # add a column for the sample IDs
-  map$SampleID = rownames(map)      # add a column for the sample IDs
+  # Acrobatics for ggplot2
+  otu.m = data.frame(t(otu.m),check.names=F)      # Flip table
+  otu.m$SampleID = rownames(otu.m)  # Add a column for the sample IDs
+  map$SampleID = rownames(map)      # Add a column for the sample IDs
   
   # The following separates taxa abundances per sample, then splices in the column of interest
   otu.m = melt(otu.m, id.vars = "SampleID", variable.name = "Taxa", value.name = "RelativeAbundance")
@@ -295,35 +303,35 @@ for (L in 1:length(bT)) {
   rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
   
   levels(gl)= c("red","green") # lscolors
-  png(paste0("results/gg97_stomach_feces/Taxa_heatmap_stomachvsfeces_gg97_L",bT[L],".png"),  # create PNG for the heat map        
-      width = 8*300,                        # 8 x 300 pixels
+  png(paste0("results/gg97_stomach_feces/Taxa_heatmap_stomachvsfeces_gg97_L",bT[L],".png"),  # Create PNG for the heat map        
+      width = 8*300,                          # 8 x 300 pixels
       height = 6*300,
       res = 300,                              # 300 pixels per inch
-      pointsize = 10)                          # smaller font size
+      pointsize = 10)                         # Smaller font size
   heatmap.2(mat,
-            #cellnote = mat,  # same data set for cell labels
-            #notecol="black",      # change font color of cell labels to black
+            #cellnote = mat,       # Same dataset for cell labels
+            #notecol="black",      # Change font color of cell labels to black
             main = "", # heat map title
-            density.info="none",  # turns off density plot inside color legend
-            trace="none",         # turns off trace lines inside the heat map
-            margins = c(2,22),     # widens margins around plot
-            col=my_palette,       # use on color palette defined earlier
-            #breaks=col_breaks,    # enable color transition at specified limits
+            density.info="none",   # Turns off density plot inside color legend
+            trace="none",          # Turns off trace lines inside the heat map
+            margins = c(2,22),     # Widens margins around plot
+            col=my_palette,        # Use on color palette defined earlier
+            #breaks=col_breaks,    # Enable color transition at specified limits
             ColSideColors = as.character(gl),
-            dendrogram="row",     # only draw a row dendrogram
+            dendrogram="row",      # Only draw a row dendrogram
             lhei=c(1,4.7), lwid=c(1,5),
             labCol = "",
-            cexRow = 0.80,         # change font size of row labels
+            cexRow = 0.80,         # Change font size of row labels
             hclustfun = function(x) hclust(as.dist(1 - cor(as.matrix(x))), method="complete"),
-            Colv="NA"            # turn off column clustering
+            Colv="NA"              # Turn off column clustering
   )
-  par(lend = 1)           # square line ends for the color legend
-  legend("topright",      # location of the legend on the heatmap plot
-         inset=c(.1,-0), # adjust placement upward
-         legend = levels(map$Bodysite), # category labels
-         col = levels(gl),  # color key
-         lty= 1,            # line style
-         lwd = 10,          # line width
+  par(lend = 1)           # Square line ends for the color legend
+  legend("topright",      # Location of the legend on the heatmap plot
+         inset=c(.1,-0),  # Adjust placement upward
+         legend = levels(map$Bodysite), # Category labels
+         col = levels(gl),  # Color key
+         lty= 1,            # Line style
+         lwd = 10,          # Line width
          cex = 0.65,
          xpd=TRUE  # allow drawing outside
   )
@@ -332,15 +340,6 @@ for (L in 1:length(bT)) {
 
 
 #### Differential taxa testing - by Subject ####
-library(gplots)
-library(RColorBrewer)
-library(robCompositions) # Composition magic
-library(polycor)
-library(beeswarm)
-library(reshape2)
-library(phyloseq)
-library(vegan)
-
 bT = c(2,4,6,7)  # Levels to consider for the bugs
 lscolors = c("red","green")
 for (L in 1:length(bT)) {
@@ -349,11 +348,13 @@ for (L in 1:length(bT)) {
   taxaStrings = sapply(split,function(x) paste(x[1:bT[L]],collapse=";"))           # Create collapsed names
   for (i in 1:7) taxaStrings = gsub("(;[A-z]__$)?(;NA$)?","",taxaStrings,perl=T)   # Clean tips
   otu.t = rowsum(taxa,taxaStrings) # Collapse table by name
+  
   # Filter out bugs that don't appear in enough samples
   select = rowSums(otu.t > 0) > min(table(map$Subject))/2 # reasonable general min
   otu.t = otu.t[select,]                                    # Apply drop mask
   otu.t = otu.t[,rownames(map)]                             # Sync with map samp order
   otu.n = sweep(otu.t,2,colSums(otu.t),'/');                # Normalize to relative abundance
+  
   ### CLR transformation ###
   all.otus.c <- t(otu.t); eps <- 0.5
   all.otus.c <- all.otus.c * (1 - rowSums(all.otus.c==0) * eps / rowSums(all.otus.c))
@@ -364,27 +365,12 @@ for (L in 1:length(bT)) {
   all.otus.c <- all.otus.c[, !is.nan(colSums(all.otus.c))]
   otu.t <- as.data.frame(all.otus.c)
   
-  # Load OTU data for calculating distances
-  otu.d <- as.matrix(otu) # get matrix
-  # Filter out bugs that don't appear in enough samples
-  select = rowSums(otu.d > 0) > min(table(map$Subject))   # Reasonable general min
-  otu.d = otu.d[select,]                                  # Apply drop mask
-  otu.d = otu.d[,rownames(map)]                           # Sync with map order
-  otu.dn = sweep(otu.d, 2, colSums(otu), '/');             # Normalize to relative abundance
-  # Convert to relative abundance - CLR
-  eps = 0.5
-  otu.d = abs(otu.d * (1 - rowSums(otu.d==0) * eps / rowSums(otu.d))) #added absolute value... is that ok?
-  otu.d[otu.d==0] <- eps
-  otu.d = sweep(otu.d,1,rowSums(otu.d),'/');
-  ls = log(otu.d) # NAs being produced here due to negative values above
-  otu.d = t(ls - rowMeans(ls))
-  otu.d <- otu.d[, !is.nan(colSums(otu.d))]
-  
   # Calculate Foregut/Hindgut Relationships (FF, HH, FH) - Distances/Permutations
   # We want to measure the observed distances among all foreguts, among all hindguts,
   # and between foregut/hindgut for each individual. To validate these values, we can
   # conduct a permutation of these distances (changing the labels in the otu tree).
-  phyobj <- phyloseq(otu_table(otu.d, taxa_are_rows=F), tree)
+  otu.d <- as.matrix(otu)
+  phyobj <- phyloseq(otu_table(otu.d, taxa_are_rows=T), tree)
   obs <- UniFrac(phyobj, weighted=F) # observed unweighted UniFrac distances
   obs.m <- as.matrix(obs)  # view as matrix for calculating sums
   obs.ff <- sum(obs.m[seq(from=1, to=12, by=2), seq(from=2, to=12, by=2)])/30 # foreguts across all subjects (mean)
@@ -397,9 +383,9 @@ for (L in 1:length(bT)) {
   #adonis(obs ~ map$Individual, permuations=999) # permutation to determine validity of distance
   
   ## Taxa barplots -- Top 15 most abundant (kruskal sig. + other?)
-  otu.m = otu.n
+  otu.m = otu.n # Normalized
   otu.m = sweep(sqrt(otu.m),2,colSums(sqrt(otu.m)),'/')
-  meanAb = apply(otu.m,1,FUN=function(x) tapply(x, map$Subject, mean)) # group mean
+  meanAb = apply(otu.m,1,FUN=function(x) tapply(x, map$Subject, mean)) # Group mean
   ranked = order(apply(meanAb,2,max),decreasing=T)
   otu.m = otu.m[ranked,]
   
@@ -493,25 +479,25 @@ for (L in 1:length(bT)) {
   dev.off()
   
   ## Heatmap ##
-  if (num_sig < 2) next
+  # if (num_sig < 2) next
   # Need to have created the clr taxa table as a matrix
   my_palette <- colorRampPalette(c("blue", "black", "yellow"))(n = 299) # Sebastian Raschka
   gl = map$Subject
   glpos = c(grep("1a",gl),grep("1b",gl),grep("2a",gl),grep("2b",gl),grep("3a",gl),grep("3b",gl),grep("4a",gl),grep("4b",gl),grep("5a",gl),grep("5b",gl),grep("6a",gl),grep("6b",gl))
   gl = gl[glpos]
-  mat = otu.t[rownames(res),glpos]
+  mat = otu.t[,glpos] #could further restrict here to significant taxa only
   
   # Truncate names to last 2 informative levels
   split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
   rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
   
-  levels(gl)= c("red","green") # lscolors
+  levels(gl)= rep(c("red","green"), 6) # lscolors
   png(paste0("results/gg97_stomach_feces/Taxa_heatmap_stomachvsfeces_subject_gg97_L",bT[L],".png"),  # create PNG for the heat map        
       width = 8*300,                        # 8 x 300 pixels
       height = 6*300,
       res = 300,                              # 300 pixels per inch
       pointsize = 10)                          # smaller font size
-  heatmap.2(mat,
+  heatmap.2(as.matrix(mat),
             #cellnote = mat,  # same data set for cell labels
             main = "", # heat map title
             notecol="black",      # change font color of cell labels to black
@@ -542,10 +528,6 @@ for (L in 1:length(bT)) {
 
 
 #### PICRUST ####
-library(polycor)
-library(robCompositions)
-library(beeswarm)
-
 # Read in the PICRUSt L3 summarized pathways (stage 3 output)
 picrust = read.delim('data/gg97/douc_stomach_vs_feces_otutable_gg97_predictions_categorized_L3.txt',
                      skip=1, row.names = 1) #Grab picrust table, skipping bad first row
@@ -574,7 +556,6 @@ npaths = nrow(picrust)
 BS = map$Bodysite
 Grp.Pvals=rep(1,npaths)
 Grp.Corrs=rep(0,npaths)
-#KW.Pvals=rep(1,npaths)
 TT.Pvals=rep(1,npaths)
 for (m.ix in 1:npaths) {  # Loop through all the rows (taxa)
   try({ # Because some correlations may be inadmissable
@@ -589,7 +570,6 @@ for (m.ix in 1:npaths) {  # Loop through all the rows (taxa)
     Grp.Pvals[m.ix] <- pw$p.value
     Grp.Corrs[m.ix] <- biserial.cor(picrust[m.ix,], map$Bodysite, use = "complete.obs")
   },silent=T)
-  #KW.Pvals[m.ix] = kruskal.test(picrust[m.ix,] ~ map$Bodysite)$p.val
   TT.Pvals[m.ix] = t.test(picrust[m.ix,map$Bodysite == "Foregut"], picrust[m.ix,map$Bodysite == "Hindgut"], paired = TRUE, conf.level = 0.95)$p.value
 }
 
@@ -623,7 +603,6 @@ sink(NULL)
 dev.off()
 
 # PICRUSt heatmap too, why not
-library(gplots)
 my_palette <- colorRampPalette(c("blue", "black", "yellow"))(n = 299) # Sebastian Raschka
 gl = map$Bodysite
 glpos = c(grep("Foregut",gl),grep("Hindgut",gl))
