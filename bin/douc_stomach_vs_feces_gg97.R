@@ -1,7 +1,8 @@
+#### Pre-Processing ####
 library(vegan)
 library(ggplot2)
 library(ape)
-source('lib/pcoa_helper.R') # for pcoa plots
+source('lib/pcoa_helper.R') # for pcoa plots, will have to respond n
 library(phyloseq)
 library(ggsignif)
 library(gplots)
@@ -14,19 +15,16 @@ library(ltm)
 
 #### DATA WRANGLING ####
 map = read.delim('data/gg97/douc_stomach_vs_feces_matching_mapfile_082417.txt', row.names = 1) # Grab the map
-# map$Bodysite = factor(levels = c("Foregut","Hindgut"),ordered = T)
-
 ### Laod and Filter OTU and Taxa tables with less than 1000 sequences ###
 taxa = read.delim('data/gg97/douc_stomach_vs_feces_taxatable_gg97.txt',row=1,as.is=T)
 taxa = taxa[,rownames(map)]  # sync the sample names for the Taxa table
 otu = read.delim('data/gg97/douc_stomach_vs_feces_otutable_gg97.txt',row=1,as.is=T)
 otu = otu[,rownames(map)]  # sync the sample names for the OTU table
 dim(otu) # 4502 otus identified across 12 samples
-
 sum(otu) # total reads is under 1 million so singleton threshold is 1
 otu <- otu[(rowSums(otu) > 1), ]  # Remove singletons
-dim(otu) # 3379 otus identified across 12 samples
 
+dim(otu) # 3379 otus identified across 12 samples
 depths = colSums(otu)
 sort(depths)  # All are good, lowest is 58484.
 
@@ -37,15 +35,15 @@ depths.t = colSums(taxa)
 sort(depths.t)  # All are good, lowest is 58552.
 
 # Remove rare otus/taxa
-# otu = otu[rowMeans(otu > 0) >= 0.1, ]  # Remove rare otu in only one of samples in this case
-# taxa = taxa[rowMeans(taxa > 0) >= 0.1, ]  # Remove rare taxa, <10% prevalence = if only in one sample in this case
-# dim(taxa)
-
+#otu = otu[rowMeans(otu > 0) >= 0.1, ]  # Remove rare otu in only one of samples in this case
+#dim(otu)
+#taxa = taxa[rowMeans(taxa > 0) >= 0.1, ]  # Remove rare taxa, <10% prevalence = if only in one sample in this case
+#dim(taxa)
 otu.rare <- data.frame(t(rrarefy(t(otu), 58480)))
 taxa.rare <- data.frame(t(rrarefy(t(taxa), 58550)))
+
 colSums(taxa.rare)
 colSums(otu.rare)
-
 
 #### F/B Ratio ####
 pdf("results/gg97_stomach_feces/ReadDepth_closed_bodysite_stomachvsfeces_gg97.pdf",width=6,height=5.5)
@@ -54,7 +52,6 @@ dev.off()
 isFirmicutes = grepl('p__Firmicutes',rownames(taxa))     # Save "trues" for Firmicutes, false otherwise
 isBacteroides = grepl('p__Bacteroidetes',rownames(taxa)) # Like above for Bacteroidetes
 FBratio = log(colSums(taxa[isFirmicutes,])/colSums(taxa[isBacteroides,])) # Firmicutes/Bacteroidetes log-ratio, vector of lrs named by sampleID
-
 
 #### Statistical Tests - Bodysite ####
 # Independent 2-group Mann Whitney U Test (assumes independent samples)
@@ -103,28 +100,33 @@ adonis(bray ~ map$Bodysite)         # Do stats for bray-curtis too, why not
 otu.r = rrarefy(t(otu),mindepth)  # Rarefy to the minimum sample depth - otu.r is transposed
 div.shannon = diversity(otu.r,"shannon")   # Shannon index
 div.isimp = diversity(otu.r,"invsimpson")  # Simpson (inverse) index
-plot(div.isimp~map$Bodysite, xlab="Body Site",ylab="Shannon Diversity")
-plot(div.shannon~map$Bodysite, xlab="Body Site",ylab="Inverse Simpson Diversity")
-plot(rowSums(otu.r > 0) ~ map$Bodysite, xlab="Body Site",ylab="Number of OTUs")
+plot(div.isimp~map$Bodysite, xlab="Bodysite",ylab="Shannon Diversity")
+plot(div.shannon~map$Bodysite, xlab="Bodysite",ylab="Inverse Simpson Diversity")
+plot(rowSums(otu.r > 0) ~ map$Bodysite, xlab="Bodysite",ylab="Number of OTUs")
 
-otu.ad = data.frame(Div=div.shannon, Body_site=map$Bodysite)
+otu.ad = data.frame(Div=div.shannon, Bodysite=map$Bodysite)
 grps = levels(map$Bodysite)
 lab = "Alpha Diversity (Shannon)" #paste0("Alpha Diversity (",dix,")")
 pdf(paste0("results/gg97_stomach_feces/AlphaDiv_bodysite_doucvsfeces_gg97.pdf"),width=6,height=5.5)
-plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) +xlab("Body Site") + geom_violin(alpha=0.3) + 
+plot(ggplot(otu.ad,aes(x=Bodysite,y=Div,fill=Bodysite)) + ylab(lab) +xlab("Bodysite") + geom_violin(alpha=0.3) + 
        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
-       geom_jitter(aes(color=Body_site),position=position_jitter(0.2),size=2) +
-       theme(panel.background = element_blank())  )
+       geom_jitter(aes(color=Bodysite),position=position_jitter(0.2),size=2) +
+       theme(panel.background = element_blank(), axis.text = element_text(size=12), axis.title = element_text(size = 14))  )
 dev.off()
-otu.ad = data.frame(Div=rowSums(otu.r > 0), Body_site=map$Bodysite)
+tapply(otu.ad$Div, otu.ad$Bodysite, mean)    # Gets the mean Shan index per group
+tapply(otu.ad$Div, otu.ad$Bodysite, sd)      # Gets the standard devs per group
+
+otu.ad = data.frame(Div=rowSums(otu.r > 0), Bodysite=map$Bodysite)
 grps = levels(map$Bodysite)
 lab = "Alpha Diversity (Number of OTUs)" 
 pdf(paste0("results/gg97_stomach_feces/numOTU_bodysite_stomachvsfeces_gg97.pdf"),width=6,height=5.5)
-plot(ggplot(otu.ad,aes(x=Body_site,y=Div,fill=Body_site)) + ylab(lab) + xlab("Body Site") + geom_violin(alpha=0.3) + 
+plot(ggplot(otu.ad,aes(x=Bodysite,y=Div,fill=Bodysite)) + ylab(lab) + xlab("Bodysite") + geom_violin(alpha=0.3) + 
        geom_signif(comparisons = list(grps[c(1,2)]), test='t.test', map_signif_level = T) + 
-       geom_jitter(aes(color=Body_site),position=position_jitter(0.2),size=2) +
-       theme(panel.background = element_blank())  )
+       geom_jitter(aes(color=Bodysite),position=position_jitter(0.2),size=2) +
+       theme(panel.background = element_blank(), axis.text = element_text(size=12), axis.title = element_text(size = 14))  )
 dev.off()
+tapply(otu.ad$Div, otu.ad$Bodysite, mean)    # Gets the mean num OTUs per group
+tapply(otu.ad$Div, otu.ad$Bodysite, sd)      # Gets the standard devs per group
 
 
 #### Alpha diversity violin plots - Alive or Deceased####
@@ -239,7 +241,7 @@ for (L in 1:length(bT)) {
   plot(ggplot(otu.m, aes(x = Bodysite, y = RelativeAbundance, fill = Taxa)) +
          geom_bar(stat ="identity", position="fill") + labs(x="Bodysite",y="Root Relative Abundance") +
          guides(fill=guide_legend(ncol=1)) +
-         theme(panel.background = element_blank()) +
+         theme(panel.background = element_blank(), axis.text = element_text(size=12), axis.title = element_text(size = 14)) +
          scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
                                     "green4",
                                     "#6A3D9A", # purple
@@ -281,9 +283,9 @@ for (L in 1:length(bT)) {
   if (num_sig) for (i in 1:num_sig) {
     taxon = rownames(res)[i]
     cat(res[taxon,]$short,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$TT.Pvals[i],'\t','\n',sep='')
-    beeswarm(otu.t[taxon,] ~ map$Bodysite, xlab="Body Site",ylab="CLR Relative Abundance",main=res[taxon,]$short,
+    beeswarm(otu.t[taxon,] ~ map$Bodysite, xlab="Bodysite",ylab="CLR Relative Abundance",main=res[taxon,]$short,
              col=alpha(lscolors,0.7),
-             cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
+             cex.axis=1.3,cex.main=1.4,cex.lab=1.3,cex=1.1,corral="random",pch=19)
     bxplot(otu.t[taxon,] ~ map$Bodysite, add = TRUE)
   }
   sink(NULL)
@@ -378,9 +380,6 @@ for (L in 1:length(bT)) {
   obs.fh <- sum(c(obs.m[2,1], obs.m[4,3], obs.m[6,5], obs.m[8,7], obs.m[10,9], obs.m[12,11]))/6 # foregut-hindgut for each subject (mean)
   ### Foregut/Hindgut
   adonis(obs ~ map$Bodysite, permutations=999)   # permutation to determine validity of distances
-  ### Individual - is this necessary??
-  #map$Individual <- gsub("[ab]", "", map$Subject)
-  #adonis(obs ~ map$Individual, permuations=999) # permutation to determine validity of distance
   
   ## Taxa barplots -- Top 15 most abundant (kruskal sig. + other?)
   otu.m = otu.n # Normalized
@@ -416,7 +415,7 @@ for (L in 1:length(bT)) {
   plot(ggplot(otu.m, aes(x = Subject, y = RelativeAbundance, fill = Taxa)) +
          geom_bar(stat ="identity", position="fill") + labs(x="Subject",y="Root Relative Abundance", title="Relative Abundance by Subject") +
          guides(fill=guide_legend(ncol=1)) +
-         theme(panel.background = element_blank()) +
+         theme(panel.background = element_blank(), axis.text = element_text(size=12), axis.title = element_text(size = 14)) +
          scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
                                     "green4",
                                     "#6A3D9A", # purple
@@ -439,7 +438,7 @@ for (L in 1:length(bT)) {
   plot(ggplot(otu.mf, aes(x = Subject, y = RelativeAbundance, fill = Taxa)) +
          geom_bar(stat ="identity", position="fill") + labs(x="Subject",y="Root Relative Abundance", title="Foregut Relative Abundance") +
          guides(fill=guide_legend(ncol=1)) +
-         theme(panel.background = element_blank()) +
+         theme(panel.background = element_blank(), axis.text = element_text(size=14), axis.title = element_text(size = 16), plot.title = element_text(size = 18)) +
          scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
                                     "green4",
                                     "#6A3D9A", # purple
@@ -462,7 +461,7 @@ for (L in 1:length(bT)) {
   plot(ggplot(otu.mh, aes(x = Subject, y = RelativeAbundance, fill = Taxa)) +
          geom_bar(stat ="identity", position="fill") + labs(x="Subject",y="Root Relative Abundance", title="Hindgut Relative Abundance") +
          guides(fill=guide_legend(ncol=1)) +
-         theme(panel.background = element_blank()) +
+         theme(panel.background = element_blank(), axis.text = element_text(size=14), axis.title = element_text(size = 16), plot.title = element_text(size = 18)) +
          scale_fill_manual(values=c("dodgerblue2","#E31A1C", # red # Kevin Wright
                                     "green4",
                                     "#6A3D9A", # purple
@@ -575,6 +574,7 @@ for (m.ix in 1:npaths) {  # Loop through all the rows (taxa)
 
 # Adjust for multiple tests
 Grp.Pvals = p.adjust(Grp.Pvals, method = "fdr")
+
 TT.Pvals = p.adjust(TT.Pvals, method = "fdr")
 res = data.frame(TT.Pvals, Grp.Pvals, Grp.Corrs,row.names=rownames(picrust))
 res = res[order(res$TT.Pvals),]
@@ -594,9 +594,9 @@ cat("Pathway\tPWilcoxon_Q\tBiserial_Cor\tBodySite_Q\n")  # Print header
 if (num_sig) for (i in 1:num_sig) {
   pathway = rownames(res)[i]
   cat(pathway,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$TT.Pvals[i],'\n',sep='')
-  beeswarm(picrust[pathway,] ~ map$Bodysite, xlab="Body Site",ylab="Pathway Abundance",main=pathway,
+  beeswarm(picrust[pathway,] ~ map$Bodysite, xlab="Bodysite",ylab="Pathway Abundance",main=pathway,
            col=alpha(lscolors,0.7),
-           cex.axis=1.1,cex.main=1,cex=1.1,corral="random",pch=19)
+           cex.axis=1.3,cex.main=1.4,cex.lab=1.3,cex=1.1,corral="random",pch=19)
   bxplot(picrust[pathway,] ~ map$Bodysite, add = TRUE)
 }
 sink(NULL)
