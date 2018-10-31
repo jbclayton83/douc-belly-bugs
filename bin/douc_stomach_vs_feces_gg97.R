@@ -160,7 +160,7 @@ tapply(otu.ad$Div, otu.ad$Bodysite, sd)      # Gets the standard devs per group
 
 #### Differential taxa testing - by Bodysite ####
 bT = c(2,4,6,7)  # Levels to consider for the bugs
-lscolors = c("red","green")
+lscolors = c("brown1","deepskyblue")
 for (L in 1:length(bT)) {
   # Massage the taxa names
   split = strsplit(rownames(taxa),";")  # Split by semicolon into levels
@@ -285,7 +285,7 @@ for (L in 1:length(bT)) {
     cat(res[taxon,]$short,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$TT.Pvals[i],'\t','\n',sep='')
     beeswarm(otu.t[taxon,] ~ map$Bodysite, xlab="Bodysite",ylab="CLR Relative Abundance",main=res[taxon,]$short,
              col=alpha(lscolors,0.7),
-             cex.axis=1.3,cex.main=1.4,cex.lab=1.3,cex=1.1,corral="random",pch=19)
+             cex.axis=1.3,cex.main=1.4,cex.lab=1.3,cex=1.1,corral="random",pch=16)
     bxplot(otu.t[taxon,] ~ map$Bodysite, add = TRUE)
   }
   sink(NULL)
@@ -304,7 +304,7 @@ for (L in 1:length(bT)) {
   split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
   rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
   
-  levels(gl)= c("red","green") # lscolors
+  levels(gl)= c("brown1","deepskyblue") # lscolors
   png(paste0("results/gg97_stomach_feces/Taxa_heatmap_stomachvsfeces_gg97_L",bT[L],".png"),  # Create PNG for the heat map        
       width = 8*300,                          # 8 x 300 pixels
       height = 6*300,
@@ -343,7 +343,7 @@ for (L in 1:length(bT)) {
 
 #### Differential taxa testing - by Subject ####
 bT = c(2,4,6,7)  # Levels to consider for the bugs
-lscolors = c("red","green")
+lscolors = c("brown1","deepskyblue")
 for (L in 1:length(bT)) {
   # Massage the taxa names
   split = strsplit(rownames(taxa),";")  # Split by semicolon into levels
@@ -381,7 +381,7 @@ for (L in 1:length(bT)) {
   ### Foregut/Hindgut
   adonis(obs ~ map$Bodysite, permutations=999)   # permutation to determine validity of distances
   
-  ## Taxa barplots -- Top 15 most abundant (kruskal sig. + other?)
+  ## Taxa barplots -- Top 15 most abundant
   otu.m = otu.n # Normalized
   otu.m = sweep(sqrt(otu.m),2,colSums(sqrt(otu.m)),'/')
   meanAb = apply(otu.m,1,FUN=function(x) tapply(x, map$Subject, mean)) # Group mean
@@ -490,7 +490,7 @@ for (L in 1:length(bT)) {
   split = strsplit(as.character(rownames(mat)),";")        # Split by semicolon into levels
   rownames(mat) = sapply(split,function(x) paste(tail(x,2),collapse=";")) 
   
-  levels(gl)= rep(c("red","green"), 6) # lscolors
+  levels(gl)= rep(c("brown1","deepskyblue"), 6) # lscolors
   png(paste0("results/gg97_stomach_feces/Taxa_heatmap_stomachvsfeces_subject_gg97_L",bT[L],".png"),  # create PNG for the heat map        
       width = 8*300,                        # 8 x 300 pixels
       height = 6*300,
@@ -596,7 +596,7 @@ if (num_sig) for (i in 1:num_sig) {
   cat(pathway,'\t',res$Grp.Pvals[i],'\t',-res$Grp.Corrs[i],'\t',res$TT.Pvals[i],'\n',sep='')
   beeswarm(picrust[pathway,] ~ map$Bodysite, xlab="Bodysite",ylab="Pathway Abundance",main=pathway,
            col=alpha(lscolors,0.7),
-           cex.axis=1.3,cex.main=1.4,cex.lab=1.3,cex=1.1,corral="random",pch=19)
+           cex.axis=1.3,cex.main=1.4,cex.lab=1.3,cex=1.1,corral="random",pch=16)
   bxplot(picrust[pathway,] ~ map$Bodysite, add = TRUE)
 }
 sink(NULL)
@@ -611,7 +611,7 @@ mat = picrust[rownames(res[abs(res$Grp.Corrs) > 0.75,]),glpos]
 mat = sweep(mat,1,rowSums(abs(mat)),'/')                      # Normalize to relative abundance
 mat = sweep(mat,1,max(apply(mat,1,max),apply(mat,1,min)),'/') # Constrain extrema to [-1, 1]
 
-levels(gl)= lscolors #c("red","orange","yellow")
+levels(gl)= lscolors #c("brown1", "deepskyblue")
 
 png("results/gg97_stomach_feces/PiMap_gg97.png",  # create PNG for the heat map        
     width = 8*300,                        # 5 x 300 pixels
