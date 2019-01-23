@@ -59,14 +59,28 @@ wilcox.test(FBratio ~ map$Bodysite)
 # Paired Wilcoxon (assumes related samples)
 wilcox.test(FBratio[map$Bodysite == 'Foregut'], FBratio[map$Bodysite == 'Hindgut'], paired = TRUE, alternative = "two.sided")
 pdf("results/gg97_stomach_feces/FBratio_bodysite_stomachvsfeces_gg97.pdf",width=6,height=5.5)
-plot(FBratio ~ map$Bodysite, xlab="Bodysite", ylab="Log F:B ratio")
+plot(FBratio ~ map$Bodysite, xlab="Body-site", ylab="Log F:B ratio")
 dev.off()
-df = data.frame(FBratio, map$Bodysite)     # Split into groups by bodysite
+df = data.frame(FBratio = colSums(taxa[isFirmicutes,])/colSums(taxa[isBacteroides,]), Bodysite = map$Bodysite)     # Split into groups by bodysite
 tapply(FBratio, map$Bodysite, mean)  # Get the mean FB ratio per group
 tapply(FBratio, map$Bodysite, sd)    # Gets the standard devs per group
 # Plotting Number of Taxa: Bacteroides vs. Firmicutes
 # plot(colSums(taxa[isBacteroides,]) ~ map$Bodysite)
 # plot(colSums(taxa[isFirmicutes,]) ~ map$Bodysite)
+# New Plot of F:B ratio
+ggplot(df, aes(x=Bodysite, y=FBratio, fill=Bodysite)) +
+  geom_boxplot(outlier.size = 0) +
+  geom_jitter(pch = 21, alpha = 0.8, stroke = 0.9, width = 0.2) +
+  theme_classic() +
+  labs(x = "Body-site", y = "Log F:B ratio") +
+  guides(fill = guide_legend(title = "Body-site"))
+# note: subjects 4 and 5 are driving top quartile of foregut F:B ratio
+subj45f <- which(map$Subject %in% c("4a","5a"))
+FBratio[subj45f]
+colSums(taxa[isFirmicutes,])[subj45f]  # Firmicutes total - subject4 is high here compared to other foreguts
+colSums(taxa[isBacteroides,])[subj45f] # Bacteroides total - both lower than expected
+mean(colSums(taxa[isFirmicutes,])[-subj45f]) #group mean excluding these two foregut samples
+mean(colSums(taxa[isBacteroides,])[-subj45f]) #group mean excluding these two foregut samples
 
 
 #### PCoA plots - Bodysite #### (requires map and otu table loaded)
